@@ -1,0 +1,321 @@
+import { useState, useRef } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/db/db';
+import { useAuthStore } from '@/store/useAuthStore';
+import { useCartStore } from '@/store/useCartStore';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import { Label } from '@/components/ui/label';
+import { Search, Plus, Minus, Printer } from 'lucide-react';
+import { StrukPrint } from '@/components/StrukPrint';
+
+export default function Kasir() {
+  const { user } = useAuthStore();
+  const { items, addItem, updateQty, removeItem, diskon, setDiskon, pelanggan_id, setPelanggan, clearCart, getTotal } = useCartStore();
+  
+  const [searchTerm, setSearchTerm] = useState('');
+  const [bayar, setBayar] = useState(0);
+  const [metodeBayar, setMetodeBayar] = useState<'Tunai' | 'QRIS' | 'Bon'>('Tunai');
+  const [transaksiSelesai, setTransaksiSelesai] = useState<any>(null);
+
+  const printRef = useRef<HTMLDivElement>(null);
+
+  const produks = useLiveQuery(
+    () => {
+      if (!searchTerm) return db.produk.limit(10).toArray();
+      return db.produk
+        .filter(p => p.nama.toLowerCase().includes(searchTerm.toLowerCase()) || p.barcode === searchTerm)
+        .limit(10)
+        .toArray();
+    },
+    [searchTerm]
+  );
+
+  const pelanggans = useLiveQuery(() => db.pelanggan.toArray(), []);
+
+  const total = getTotal();
+  const kembalian = Math.max(0, bayar - total);
+
+  const handleAddProduct = (p: any) => {
+    if (p.kelola_stok && p.stok <= 0) {
+      alert('Stok habis!');
+      return;
+    }
+    const currentItem = items.find(i => i.produk_id === p.id);
+    if (p.kelola_stok && currentItem && currentItem.qty >= p.stok) {
+      alert('Stok tidak mencukupi!');
+      return;
+    }
+    
+    addItem({
+      produk_id: p.id,
+      nama: p.nama,
+      harga: p.harga_jual,
+      qty: 1,
+      stok: p.stok,
+      kelola_stok: p.kelola_stok
+    });
+  };
+
+  const handleCheckout = async () => {
+    if (items.length === 0) return alert('Keranjang kosong');
+    if (metodeBayar === 'Bon' && !pelanggan_id) return alert('Pilih pelanggan untuk pembayaran Bon');
+    if (metodeBayar === 'Tunai' && bayar < total) return alert('Uang bayar kurang');
+
+    try {
+      const kode_transaksi = `TRX-${Date.now()}`;
+      const now = new Date();
+
+      // Start transaction
+      await db.transaction('rw', db.transaksi, db.transaksi_detail, db.produk, async () => {
+        // 1. Insert Transaksi
+        const trxId = await db.transaksi.add({
+          kode_transaksi,
+          tanggal: now,
+          user_id: user!.id,
+          pelanggan_id: pelanggan_id || undefined,
+          subtotal: items.reduce((sum, i) => sum + i.subtotal, 0),
+          diskon,
+          total,
+          bayar: metodeBayar === 'Bon' ? 0 : bayar,
+          kembalian: metodeBayar === 'Bon' ? 0 : kembalian,
+          metode_bayar: metodeBayar,
+          status: metodeBayar === 'Bon' ? 'Bon' : 'Lunas'
+        });
+
+        // 2. Insert Transaksi Detail & Update Stok
+        const details = items.map(item => ({
+          transaksi_id: trxId as number,
+          produk_id: item.produk_id,
+          qty: item.qty,
+          harga: item.harga,
+          total: item.subtotal
+        }));
+        await db.transaksi_detail.bulkAdd(details);
+
+        for (const item of items) {
+          if (item.kelola_stok) {
+            const prod = await db.produk.get(item.produk_id);
+            if (prod) {
+              await db.produk.update(prod.id!, { stok: prod.stok - item.qty });
+            }
+          }
+        }
+
+        // Set state for printing
+        setTransaksiSelesai({
+          kode: kode_transaksi,
+          tanggal: now,
+          kasir: user!.username,
+          items: items.map(i => ({ nama: i.nama, qty: i.qty, harga: i.harga, subtotal: i.subtotal })),
+          subtotal: items.reduce((sum, i) => sum + i.subtotal, 0),
+          diskon,
+          total,
+          bayar: metodeBayar === 'Bon' ? 0 : bayar,
+          kembalian: metodeBayar === 'Bon' ? 0 : kembalian,
+          metode_bayar: metodeBayar
+        });
+        
+        clearCart();
+        setBayar(0);
+        setSearchTerm('');
+      });
+    } catch (error) {
+      console.error(error);
+      alert('Terjadi kesalahan saat checkout');
+    }
+  };
+
+  const handlePrint = () => {
+    window.print();
+    setTransaksiSelesai(null);
+  };
+
+  // If transaction completed, show receipt overlay
+  if (transaksiSelesai) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full space-y-4 print:block print:h-auto">
+        <div className="hidden print:block">
+          <StrukPrint transaksi={transaksiSelesai} ref={printRef} />
+        </div>
+        <div className="print:hidden bg-white p-8 rounded-xl shadow text-center space-y-4">
+          <h2 className="text-2xl font-bold text-green-600">Transaksi Berhasil!</h2>
+          <p>Kembalian: <span className="font-bold text-xl">Rp {transaksiSelesai.kembalian.toLocaleString('id-ID')}</span></p>
+          <div className="flex gap-4 justify-center">
+            <Button onClick={handlePrint}>
+              <Printer className="w-4 h-4 mr-2" /> Print Struk
+            </Button>
+            <Button variant="outline" onClick={() => setTransaksiSelesai(null)}>
+              Transaksi Baru
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full print:hidden">
+      {/* Left side: Product Search & List */}
+      <Card className="lg:col-span-2 flex flex-col h-[calc(100vh-8rem)]">
+        <CardHeader className="pb-3 shrink-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+            <Input 
+              placeholder="Cari produk / scan barcode..." 
+              className="pl-9"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              autoFocus
+            />
+          </div>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-auto">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {produks?.map(p => (
+              <div 
+                key={p.id} 
+                onClick={() => handleAddProduct(p)}
+                className="border rounded-lg p-3 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+              >
+                <div className="font-semibold text-sm truncate">{p.nama}</div>
+                <div className="text-primary font-bold text-sm mt-1">Rp {p.harga_jual.toLocaleString('id-ID')}</div>
+                <div className="text-xs text-muted-foreground mt-2">
+                  Stok: {p.kelola_stok ? p.stok : '∞'}
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Right side: Cart & Checkout */}
+      <Card className="flex flex-col h-[calc(100vh-8rem)]">
+        <CardHeader className="pb-3 shrink-0 border-b">
+          <CardTitle>Keranjang</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-auto p-0">
+          <Table>
+            <TableBody>
+              {items.map(item => (
+                <TableRow key={item.produk_id}>
+                  <TableCell className="p-3">
+                    <div className="font-medium text-sm">{item.nama}</div>
+                    <div className="text-xs text-muted-foreground">Rp {item.harga.toLocaleString('id-ID')}</div>
+                  </TableCell>
+                  <TableCell className="p-3 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <Button variant="outline" size="icon" className="h-6 w-6" 
+                        onClick={() => {
+                          if (item.qty > 1) updateQty(item.produk_id, item.qty - 1);
+                          else removeItem(item.produk_id);
+                        }}
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-sm font-medium w-4 text-center">{item.qty}</span>
+                      <Button variant="outline" size="icon" className="h-6 w-6"
+                        onClick={() => {
+                          if (item.kelola_stok && item.qty >= item.stok) return alert('Stok tidak cukup');
+                          updateQty(item.produk_id, item.qty + 1);
+                        }}
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                  <TableCell className="p-3 text-right text-sm font-medium">
+                    {item.subtotal.toLocaleString('id-ID')}
+                  </TableCell>
+                </TableRow>
+              ))}
+              {items.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
+                    Belum ada produk
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+        <div className="shrink-0 border-t p-4 bg-gray-50 space-y-3">
+          <div className="flex justify-between items-center text-sm">
+            <span>Diskon (Rp)</span>
+            <Input 
+              type="number" 
+              className="w-32 h-8 text-right" 
+              value={diskon || ''} 
+              onChange={(e) => setDiskon(Number(e.target.value))}
+            />
+          </div>
+          <div className="flex justify-between items-center font-bold text-lg">
+            <span>Total</span>
+            <span className="text-primary">Rp {total.toLocaleString('id-ID')}</span>
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <Label>Metode Pembayaran</Label>
+            <div className="flex gap-2">
+              {['Tunai', 'QRIS', 'Bon'].map(m => (
+                <Button 
+                  key={m} 
+                  variant={metodeBayar === m ? 'default' : 'outline'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setMetodeBayar(m as any)}
+                >
+                  {m}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {metodeBayar === 'Bon' && (
+            <div className="space-y-2">
+              <Label>Pelanggan</Label>
+              <select 
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                value={pelanggan_id || ''}
+                onChange={(e) => setPelanggan(Number(e.target.value))}
+              >
+                <option value="">Pilih Pelanggan...</option>
+                {pelanggans?.map(p => (
+                  <option key={p.id} value={p.id}>{p.nama}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {metodeBayar === 'Tunai' && (
+            <div className="space-y-2 pt-2 border-t border-dashed">
+              <div className="flex justify-between items-center text-sm">
+                <span>Bayar</span>
+                <Input 
+                  type="number" 
+                  className="w-32 h-8 text-right font-medium" 
+                  value={bayar || ''} 
+                  onChange={(e) => setBayar(Number(e.target.value))}
+                />
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span>Kembali</span>
+                <span className="font-bold">Rp {kembalian.toLocaleString('id-ID')}</span>
+              </div>
+            </div>
+          )}
+
+          <Button 
+            className="w-full h-12 text-lg font-bold mt-4" 
+            onClick={handleCheckout}
+            disabled={items.length === 0}
+          >
+            Bayar
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+}
