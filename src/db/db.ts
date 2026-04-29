@@ -6,6 +6,9 @@ export interface User {
   username: string;
   password?: string; // Hashed
   role: 'Owner' | 'Admin' | 'Kasir';
+  gaji_pokok?: number;
+  tipe_komisi?: 'persen' | 'nominal';
+  nominal_komisi?: number;
 }
 
 export interface Produk {
@@ -43,7 +46,7 @@ export interface Transaksi {
   total: number;
   bayar: number;
   kembalian: number;
-  metode_bayar: 'Tunai' | 'QRIS' | 'Bon';
+  metode_bayar: 'Tunai' | 'QRIS' | 'Bon' | 'Pelunasan Bon';
   status: 'Lunas' | 'Bon';
 }
 
@@ -65,6 +68,15 @@ export interface StokMasuk {
   keterangan: string;
 }
 
+export interface BiayaOperasional {
+  id?: number;
+  tanggal: Date;
+  kategori: string;
+  nominal: number;
+  keterangan: string;
+  user_id: number;
+}
+
 const db = new Dexie('POSDatabase') as Dexie & {
   users: EntityTable<User, 'id'>;
   produk: EntityTable<Produk, 'id'>;
@@ -73,6 +85,7 @@ const db = new Dexie('POSDatabase') as Dexie & {
   transaksi: EntityTable<Transaksi, 'id'>;
   transaksi_detail: EntityTable<TransaksiDetail, 'id'>;
   stok_masuk: EntityTable<StokMasuk, 'id'>;
+  biaya_operasional: EntityTable<BiayaOperasional, 'id'>;
 };
 
 // Schema declaration
@@ -84,6 +97,10 @@ db.version(1).stores({
   transaksi: '++id, kode_transaksi, tanggal, user_id, pelanggan_id, metode_bayar, status',
   transaksi_detail: '++id, transaksi_id, produk_id',
   stok_masuk: '++id, produk_id, tanggal'
+});
+
+db.version(2).stores({
+  biaya_operasional: '++id, tanggal, kategori'
 });
 
 export const initDb = async () => {

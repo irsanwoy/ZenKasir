@@ -6,6 +6,7 @@ export interface TokoSettings {
   alamat: string;
   no_hp: string;
   footer_struk: string;
+  qris_image?: string;
 }
 
 interface SettingState {
@@ -21,6 +22,7 @@ export const useSettingStore = create<SettingState>()(
         alamat: 'Jl. Merdeka No. 123, Jakarta',
         no_hp: '081234567890',
         footer_struk: 'Terima kasih atas kunjungan Anda!',
+        qris_image: '',
       },
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings }

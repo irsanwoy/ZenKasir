@@ -3,22 +3,26 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useCartStore } from '@/store/useCartStore';
+import { useSettingStore } from '@/store/useSettingStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Minus, Printer } from 'lucide-react';
+import { Search, Plus, Minus, Printer, ShoppingCart } from 'lucide-react';
 import { StrukPrint } from '@/components/StrukPrint';
+import { Sheet } from '@/components/ui/sheet';
 
 export default function Kasir() {
   const { user } = useAuthStore();
   const { items, addItem, updateQty, removeItem, diskon, setDiskon, pelanggan_id, setPelanggan, clearCart, getTotal } = useCartStore();
+  const { settings } = useSettingStore();
   
   const [searchTerm, setSearchTerm] = useState('');
   const [bayar, setBayar] = useState(0);
   const [metodeBayar, setMetodeBayar] = useState<'Tunai' | 'QRIS' | 'Bon'>('Tunai');
   const [transaksiSelesai, setTransaksiSelesai] = useState<any>(null);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -59,6 +63,22 @@ export default function Kasir() {
     });
   };
 
+  const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && searchTerm) {
+      const match = await db.produk.where('barcode').equals(searchTerm).first();
+      if (match) {
+        handleAddProduct(match);
+        setSearchTerm('');
+      } else {
+        const matchName = await db.produk.filter(p => p.nama.toLowerCase() === searchTerm.toLowerCase()).first();
+        if (matchName) {
+          handleAddProduct(matchName);
+          setSearchTerm('');
+        }
+      }
+    }
+  };
+
   const handleCheckout = async () => {
     if (items.length === 0) return alert('Keranjang kosong');
     if (metodeBayar === 'Bon' && !pelanggan_id) return alert('Pilih pelanggan untuk pembayaran Bon');
@@ -79,8 +99,8 @@ export default function Kasir() {
           subtotal: items.reduce((sum, i) => sum + i.subtotal, 0),
           diskon,
           total,
-          bayar: metodeBayar === 'Bon' ? 0 : bayar,
-          kembalian: metodeBayar === 'Bon' ? 0 : kembalian,
+          bayar: metodeBayar === 'QRIS' ? total : (metodeBayar === 'Bon' ? 0 : bayar),
+          kembalian: metodeBayar === 'QRIS' ? 0 : (metodeBayar === 'Bon' ? 0 : kembalian),
           metode_bayar: metodeBayar,
           status: metodeBayar === 'Bon' ? 'Bon' : 'Lunas'
         });
@@ -113,8 +133,8 @@ export default function Kasir() {
           subtotal: items.reduce((sum, i) => sum + i.subtotal, 0),
           diskon,
           total,
-          bayar: metodeBayar === 'Bon' ? 0 : bayar,
-          kembalian: metodeBayar === 'Bon' ? 0 : kembalian,
+          bayar: metodeBayar === 'QRIS' ? total : (metodeBayar === 'Bon' ? 0 : bayar),
+          kembalian: metodeBayar === 'QRIS' ? 0 : (metodeBayar === 'Bon' ? 0 : kembalian),
           metode_bayar: metodeBayar
         });
         
@@ -156,18 +176,37 @@ export default function Kasir() {
     );
   }
 
+  const totalItems = items.reduce((sum, i) => sum + i.qty, 0);
+
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full print:hidden">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full print:hidden relative">
+      {/* Floating Cart Button (Mobile Only) */}
+      <div className="lg:hidden fixed bottom-20 right-4 z-40">
+        <Button 
+          size="icon" 
+          className="h-14 w-14 rounded-full shadow-xl shadow-primary/20 bg-primary hover:bg-primary/90"
+          onClick={() => setIsCartOpen(true)}
+        >
+          <ShoppingCart className="h-6 w-6 text-white" />
+          {totalItems > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white border-2 border-white">
+              {totalItems}
+            </span>
+          )}
+        </Button>
+      </div>
+
       {/* Left side: Product Search & List */}
-      <Card className="lg:col-span-2 flex flex-col h-[calc(100vh-8rem)]">
+      <Card className="lg:col-span-2 flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-10rem)]">
         <CardHeader className="pb-3 shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input 
-              placeholder="Cari produk / scan barcode..." 
+              placeholder="Cari produk / scan barcode lalu Enter..." 
               className="pl-9"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={handleSearchKeyDown}
               autoFocus
             />
           </div>
@@ -192,10 +231,11 @@ export default function Kasir() {
       </Card>
 
       {/* Right side: Cart & Checkout */}
-      <Card className="flex flex-col h-[calc(100vh-8rem)]">
-        <CardHeader className="pb-3 shrink-0 border-b">
-          <CardTitle>Keranjang</CardTitle>
-        </CardHeader>
+      <Sheet isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} title="Keranjang Belanja">
+        <Card className="flex flex-col h-full border-0 lg:border lg:h-[calc(100vh-10rem)] rounded-none lg:rounded-xl shadow-none lg:shadow-sm">
+          <CardHeader className="hidden lg:flex pb-3 shrink-0 border-b">
+            <CardTitle>Keranjang</CardTitle>
+          </CardHeader>
         <CardContent className="flex-1 overflow-auto p-0">
           <Table>
             <TableBody>
@@ -307,15 +347,31 @@ export default function Kasir() {
             </div>
           )}
 
+          {metodeBayar === 'QRIS' && (
+            <div className="space-y-2 pt-2 border-t border-dashed text-center">
+              {settings.qris_image ? (
+                <div className="py-2">
+                  <img src={settings.qris_image} alt="QRIS" className="w-48 h-48 mx-auto object-contain bg-white p-2 rounded-xl shadow-sm border border-gray-100" />
+                  <p className="font-bold text-xl mt-3 text-primary">Rp {total.toLocaleString('id-ID')}</p>
+                </div>
+              ) : (
+                <div className="bg-red-50 text-red-600 p-3 rounded-md text-sm border border-red-200 mt-2 text-left">
+                  ⚠️ QRIS belum di-setting. Silakan upload gambar QRIS di menu Pengaturan Toko.
+                </div>
+              )}
+            </div>
+          )}
+
           <Button 
             className="w-full h-12 text-lg font-bold mt-4" 
             onClick={handleCheckout}
-            disabled={items.length === 0}
+            disabled={items.length === 0 || (metodeBayar === 'QRIS' && !settings.qris_image)}
           >
-            Bayar
+            {metodeBayar === 'QRIS' ? 'Konfirmasi Sudah Dibayar' : 'Bayar'}
           </Button>
         </div>
-      </Card>
+        </Card>
+      </Sheet>
     </div>
   );
 }
