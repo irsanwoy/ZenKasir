@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -9,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Minus, Printer, ShoppingCart } from 'lucide-react';
+import { Search, Plus, Minus, Printer, ShoppingCart, ScanLine } from 'lucide-react';
 import { StrukPrint } from '@/components/StrukPrint';
 import { Sheet } from '@/components/ui/sheet';
 
@@ -23,8 +24,39 @@ export default function Kasir() {
   const [metodeBayar, setMetodeBayar] = useState<'Tunai' | 'QRIS' | 'Bon'>('Tunai');
   const [transaksiSelesai, setTransaksiSelesai] = useState<any>(null);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+    if (isScanning) {
+      setTimeout(() => {
+        scanner = new Html5QrcodeScanner("kasir-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        scanner.render(async (decodedText) => {
+          setIsScanning(false);
+          scanner?.clear();
+          
+          const match = await db.produk.where('barcode').equals(decodedText).first();
+          if (match) {
+            handleAddProduct(match);
+            setTimeout(() => searchInputRef.current?.focus(), 50);
+          } else {
+            setToastMessage('Produk tidak ditemukan');
+            setTimeout(() => setToastMessage(''), 3000);
+            setTimeout(() => searchInputRef.current?.focus(), 50);
+          }
+        }, () => {});
+      }, 100);
+    }
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(console.error);
+      }
+    };
+  }, [isScanning]);
 
   const printRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const produks = useLiveQuery(
     () => {
@@ -43,11 +75,12 @@ export default function Kasir() {
   const kembalian = Math.max(0, bayar - total);
 
   const handleAddProduct = (p: any) => {
+    const currentItems = useCartStore.getState().items;
     if (p.kelola_stok && p.stok <= 0) {
       alert('Stok habis!');
       return;
     }
-    const currentItem = items.find(i => i.produk_id === p.id);
+    const currentItem = currentItems.find(i => i.produk_id === p.id);
     if (p.kelola_stok && currentItem && currentItem.qty >= p.stok) {
       alert('Stok tidak mencukupi!');
       return;
@@ -69,11 +102,18 @@ export default function Kasir() {
       if (match) {
         handleAddProduct(match);
         setSearchTerm('');
+        setTimeout(() => searchInputRef.current?.focus(), 50);
       } else {
         const matchName = await db.produk.filter(p => p.nama.toLowerCase() === searchTerm.toLowerCase()).first();
         if (matchName) {
           handleAddProduct(matchName);
           setSearchTerm('');
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        } else {
+          setToastMessage('Produk tidak ditemukan');
+          setTimeout(() => setToastMessage(''), 3000);
+          setSearchTerm('');
+          setTimeout(() => searchInputRef.current?.focus(), 50);
         }
       }
     }
@@ -199,30 +239,56 @@ export default function Kasir() {
       {/* Left side: Product Search & List */}
       <Card className="lg:col-span-2 flex flex-col h-[calc(100vh-8rem)] md:h-[calc(100vh-10rem)]">
         <CardHeader className="pb-3 shrink-0">
-          <div className="relative">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-            <Input 
-              placeholder="Cari produk / scan barcode lalu Enter..." 
-              className="pl-9"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              onKeyDown={handleSearchKeyDown}
-              autoFocus
-            />
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+              <Input 
+                ref={searchInputRef}
+                placeholder="Cari produk / Scan barcode lalu Enter..." 
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                autoFocus
+              />
+            </div>
+            <Button variant="outline" size="icon" onClick={() => setIsScanning(!isScanning)} title="Scan via Kamera">
+              <ScanLine className="h-4 w-4" />
+            </Button>
           </div>
+          {isScanning && (
+            <div id="kasir-reader" className="w-full mt-2 border rounded-md overflow-hidden bg-white max-w-sm mx-auto"></div>
+          )}
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
             {produks?.map(p => (
               <div 
                 key={p.id} 
-                onClick={() => handleAddProduct(p)}
-                className="border rounded-lg p-3 cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors"
+                className="border rounded-lg overflow-hidden flex flex-col bg-white"
               >
-                <div className="font-semibold text-sm truncate">{p.nama}</div>
-                <div className="text-primary font-bold text-sm mt-1">Rp {p.harga_jual.toLocaleString('id-ID')}</div>
-                <div className="text-xs text-muted-foreground mt-2">
-                  Stok: {p.kelola_stok ? p.stok : '∞'}
+                <div className="aspect-square bg-gray-50 flex items-center justify-center w-full border-b">
+                  {(p as any).gambar ? (
+                    <img src={(p as any).gambar} alt={p.nama} className="w-full h-full object-cover" />
+                  ) : (
+                    <ShoppingCart className="w-12 h-12 text-gray-200" />
+                  )}
+                </div>
+                <div className="p-3 flex-1 flex flex-col">
+                  <div className="font-semibold text-sm truncate">{p.nama}</div>
+                  <div className="text-primary font-bold text-sm mt-1">Rp {p.harga_jual.toLocaleString('id-ID')}</div>
+                  <div className="text-xs text-muted-foreground mt-1 mb-3">
+                    Stok: {p.kelola_stok ? p.stok : '∞'}
+                  </div>
+                  <div className="mt-auto">
+                    <Button 
+                      className="w-full h-8 text-xs" 
+                      onClick={() => handleAddProduct(p)}
+                      disabled={p.kelola_stok && p.stok <= 0}
+                    >
+                      {p.kelola_stok && p.stok <= 0 ? 'Habis' : '+ Keranjang'}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ))}
@@ -372,6 +438,13 @@ export default function Kasir() {
         </div>
         </Card>
       </Sheet>
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-600 text-white px-6 py-3 rounded-full shadow-lg font-medium z-50 animate-in fade-in slide-in-from-top-4">
+          {toastMessage}
+        </div>
+      )}
     </div>
   );
 }

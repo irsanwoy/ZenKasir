@@ -22,6 +22,7 @@ export interface Produk {
   stok: number;
   tipe: 'barang' | 'jasa';
   kelola_stok: boolean;
+  gambar?: string | null;
 }
 
 export interface Kategori {

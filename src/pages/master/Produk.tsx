@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { Card, CardContent } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Camera, ScanLine } from 'lucide-react';
 
 export default function Produk() {
   const produks = useLiveQuery(async () => {
@@ -26,9 +27,67 @@ export default function Produk() {
   const initialForm = {
     sku: '', barcode: '', nama: '', kategori_id: 0, 
     harga_modal: 0, harga_jual: 0, stok: 0, 
-    tipe: 'barang' as 'barang' | 'jasa', kelola_stok: true
+    tipe: 'barang' as 'barang' | 'jasa', kelola_stok: true, gambar: ''
   };
   const [formData, setFormData] = useState(initialForm);
+  const [isScanning, setIsScanning] = useState(false);
+
+  useEffect(() => {
+    let scanner: Html5QrcodeScanner | null = null;
+    if (isScanning) {
+      setTimeout(() => {
+        scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
+        scanner.render((decodedText) => {
+          setFormData(prev => ({ ...prev, barcode: decodedText }));
+          setIsScanning(false);
+          scanner?.clear();
+        }, () => {});
+      }, 100);
+    }
+    return () => {
+      if (scanner) {
+        scanner.clear().catch(console.error);
+      }
+    };
+  }, [isScanning]);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_SIZE = 300;
+          let width = img.width;
+          let height = img.height;
+          
+          if (width > height) {
+            if (width > MAX_SIZE) {
+              height *= MAX_SIZE / width;
+              width = MAX_SIZE;
+            }
+          } else {
+            if (height > MAX_SIZE) {
+              width *= MAX_SIZE / height;
+              height = MAX_SIZE;
+            }
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx?.drawImage(img, 0, 0, width, height);
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          setFormData(prev => ({ ...prev, gambar: dataUrl }));
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const openModal = (id: number | null = null, currentData: any = null) => {
     setEditId(id);
@@ -44,6 +103,7 @@ export default function Produk() {
     setIsModalOpen(false);
     setFormData(initialForm);
     setEditId(null);
+    setIsScanning(false);
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -51,9 +111,18 @@ export default function Produk() {
     if (!formData.nama.trim() || !formData.kategori_id) return alert('Data tidak lengkap');
 
     try {
+      if (formData.barcode) {
+        const existing = await db.produk.where('barcode').equals(formData.barcode).first();
+        if (existing && existing.id !== editId) {
+          return alert('Barcode sudah dipakai produk lain');
+        }
+      }
       // Clean data before save
+      const finalSku = formData.sku || `SKU${Date.now().toString().slice(-6)}`;
+      
       const dataToSave = {
         ...formData,
+        sku: finalSku,
         kategori_id: Number(formData.kategori_id),
         harga_modal: Number(formData.harga_modal),
         harga_jual: Number(formData.harga_jual),
@@ -150,20 +219,45 @@ export default function Produk() {
         className="max-w-2xl"
       >
         <form onSubmit={handleSave} className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">SKU</label>
-            <Input 
-              value={formData.sku} 
-              onChange={(e) => setFormData({...formData, sku: e.target.value})} 
-              required
-            />
+          <div className="space-y-2 col-span-2">
+            <label className="text-sm font-medium">Barcode (Opsional)</label>
+            <div className="flex gap-2">
+              <Input 
+                value={formData.barcode} 
+                onChange={(e) => setFormData({...formData, barcode: e.target.value})} 
+                placeholder="Scan / Ketik"
+              />
+              <Button type="button" variant="outline" size="icon" onClick={() => setIsScanning(!isScanning)}>
+                <ScanLine className="w-4 h-4" />
+              </Button>
+            </div>
+            {isScanning && (
+              <div id="reader" className="w-full mt-2 border rounded-md overflow-hidden bg-white"></div>
+            )}
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Barcode</label>
-            <Input 
-              value={formData.barcode} 
-              onChange={(e) => setFormData({...formData, barcode: e.target.value})} 
-            />
+          
+          <div className="space-y-2 col-span-2">
+            <label className="text-sm font-medium">Foto Produk</label>
+            <div className="flex items-center gap-4">
+              {formData.gambar ? (
+                <div className="relative w-16 h-16 border rounded-md overflow-hidden">
+                  <img src={formData.gambar} alt="Preview" className="w-full h-full object-cover" />
+                  <button type="button" onClick={() => setFormData({...formData, gambar: ''})} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md p-1">
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
+              ) : (
+                <div className="w-16 h-16 border rounded-md bg-gray-100 flex items-center justify-center text-gray-400">
+                  <Camera className="w-6 h-6" />
+                </div>
+              )}
+              <Input 
+                type="file" 
+                accept="image/*" 
+                onChange={handleImageUpload}
+                className="flex-1"
+              />
+            </div>
           </div>
           
           <div className="space-y-2 col-span-2">
