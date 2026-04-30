@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Plus, Edit2, Trash2, Wallet, ClipboardList } from 'lucide-react';
+import { Plus, Edit2, Trash2, Wallet, ClipboardList, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 
@@ -138,6 +138,28 @@ export default function Pelanggan() {
     }
   };
 
+  const handleWA = (p: any) => {
+    let phone = p.no_hp;
+    if (!phone) return;
+    
+    // Format ke +62
+    phone = phone.replace(/\D/g, '');
+    if (phone.startsWith('0')) {
+      phone = '62' + phone.substring(1);
+    } else if (phone.startsWith('8')) {
+      phone = '62' + phone;
+    }
+    
+    let text = `Halo ${p.nama},\n\n`;
+    if (p.totalHutang > 0) {
+      text += `Ini pesan dari toko kami. Kami ingin menginformasikan bahwa Anda memiliki sisa tagihan kasbon sebesar *Rp ${p.totalHutang.toLocaleString('id-ID')}*. Mohon untuk segera diselesaikan ya.\n\nTerima kasih! 🙏`;
+    } else {
+      text += `Terima kasih telah menjadi pelanggan setia di toko kami! 🙏`;
+    }
+    
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
@@ -162,7 +184,22 @@ export default function Pelanggan() {
               {pelanggans?.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell className="font-medium">{p.nama}</TableCell>
-                  <TableCell>{p.no_hp || '-'}</TableCell>
+                  <TableCell>
+                    {p.no_hp ? (
+                      <div className="flex items-center gap-2">
+                        <span>{p.no_hp}</span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-6 w-6 text-green-600 hover:text-green-700 hover:bg-green-100" 
+                          onClick={() => handleWA(p)}
+                          title="Chat via WhatsApp"
+                        >
+                          <MessageCircle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : '-'}
+                  </TableCell>
                   <TableCell className="text-right font-bold text-red-600">
                     {(p as any).totalHutang > 0 ? `Rp ${(p as any).totalHutang.toLocaleString('id-ID')}` : '-'}
                   </TableCell>
