@@ -9,9 +9,7 @@ import {
   Settings,
   LogOut,
   FileText,
-  Wallet,
-  UserCog,
-  Landmark
+  Wallet
 } from 'lucide-react';
 import { cn } from '@/utils/utils';
 
@@ -32,16 +30,14 @@ export function DesktopSidebar() {
     { name: 'Master Kategori', path: '/kategori', icon: Tags, roles: ['Owner', 'Admin'] },
     { name: 'Pelanggan', path: '/pelanggan', icon: Users, roles: ['Owner', 'Admin', 'Kasir'] },
     { name: 'Biaya Operasional', path: '/biaya-operasional', icon: Wallet, roles: ['Owner', 'Admin', 'Kasir'] },
-    { name: 'Karyawan', path: '/karyawan', icon: UserCog, roles: ['Owner'] },
     { name: 'Laporan Penjualan', path: '/laporan', icon: FileText, roles: ['Owner'] },
-    { name: 'Laporan Gaji', path: '/laporan-gaji', icon: Landmark, roles: ['Owner'] },
     { name: 'Pengaturan', path: '/setting', icon: Settings, roles: ['Owner'] },
   ];
 
   const allowedNav = navItems.filter(item => user && item.roles.includes(user.role));
 
   return (
-    <aside className="hidden md:flex flex-col w-64 bg-white border-r shadow-sm shrink-0 h-screen sticky top-0">
+    <aside className="hidden md:flex flex-col w-64 bg-background dark:bg-card border-r border-border shadow-sm shrink-0 h-screen sticky top-0">
       <div className="flex items-center justify-between h-16 px-6 border-b shrink-0">
         <span className="text-xl font-bold text-primary">POS Universal</span>
       </div>
@@ -58,10 +54,10 @@ export function DesktopSidebar() {
                 "flex items-center px-3 py-2.5 text-sm font-medium rounded-lg transition-colors",
                 isActive 
                   ? "bg-primary/10 text-primary" 
-                  : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
               )}
             >
-              <Icon className={cn("w-5 h-5 mr-3", isActive ? "text-primary" : "text-gray-500")} />
+              <Icon className={cn("w-5 h-5 mr-3", isActive ? "text-primary" : "text-muted-foreground")} />
               {item.name}
             </Link>
           );
@@ -74,8 +70,8 @@ export function DesktopSidebar() {
             {user?.username.charAt(0).toUpperCase()}
           </div>
           <div className="ml-3 overflow-hidden">
-            <p className="text-sm font-medium text-gray-700 truncate">{user?.username}</p>
-            <p className="text-xs text-gray-500">{user?.role}</p>
+            <p className="text-sm font-medium text-foreground truncate">{user?.username}</p>
+            <p className="text-xs text-muted-foreground">{user?.role}</p>
           </div>
         </div>
         <button

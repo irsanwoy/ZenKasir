@@ -200,7 +200,7 @@ export default function Kasir() {
         <div className="hidden print:block">
           <StrukPrint transaksi={transaksiSelesai} ref={printRef} />
         </div>
-        <div className="print:hidden bg-white p-8 rounded-xl shadow text-center space-y-4">
+        <div className="print:hidden bg-card p-8 rounded-xl shadow text-center space-y-4">
           <h2 className="text-2xl font-bold text-green-600">Transaksi Berhasil!</h2>
           <p>Kembalian: <span className="font-bold text-xl">Rp {transaksiSelesai.kembalian.toLocaleString('id-ID')}</span></p>
           <div className="flex gap-4 justify-center">
@@ -257,7 +257,7 @@ export default function Kasir() {
             </Button>
           </div>
           {isScanning && (
-            <div id="kasir-reader" className="w-full mt-2 border rounded-md overflow-hidden bg-white max-w-sm mx-auto"></div>
+            <div id="kasir-reader" className="w-full mt-2 border rounded-md overflow-hidden bg-card max-w-sm mx-auto"></div>
           )}
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
@@ -265,9 +265,9 @@ export default function Kasir() {
             {produks?.map(p => (
               <div 
                 key={p.id} 
-                className="border rounded-lg overflow-hidden flex flex-col bg-white"
+                className="border rounded-lg overflow-hidden flex flex-col bg-card"
               >
-                <div className="aspect-square bg-gray-50 flex items-center justify-center w-full border-b">
+                <div className="aspect-square bg-muted/50 flex items-center justify-center w-full border-b">
                   {(p as any).gambar ? (
                     <img src={(p as any).gambar} alt={p.nama} className="w-full h-full object-cover" />
                   ) : (
@@ -347,7 +347,7 @@ export default function Kasir() {
             </TableBody>
           </Table>
         </CardContent>
-        <div className="shrink-0 border-t p-4 bg-gray-50 space-y-3">
+        <div className="shrink-0 border-t p-4 pb-24 lg:pb-4 bg-muted/30 space-y-3 overflow-y-auto max-h-[60vh] lg:max-h-none">
           <div className="flex justify-between items-center text-sm">
             <span>Diskon (Rp)</span>
             <Input 
@@ -383,7 +383,7 @@ export default function Kasir() {
             <div className="space-y-2">
               <Label>Pelanggan</Label>
               <select 
-                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                 value={pelanggan_id || ''}
                 onChange={(e) => setPelanggan(Number(e.target.value))}
               >
@@ -417,7 +417,7 @@ export default function Kasir() {
             <div className="space-y-2 pt-2 border-t border-dashed text-center">
               {settings.qris_image ? (
                 <div className="py-2">
-                  <img src={settings.qris_image} alt="QRIS" className="w-48 h-48 mx-auto object-contain bg-white p-2 rounded-xl shadow-sm border border-gray-100" />
+                  <img src={settings.qris_image} alt="QRIS" className="w-48 h-48 mx-auto object-contain bg-white dark:bg-gray-100 p-2 rounded-xl shadow-sm border border-gray-100" />
                   <p className="font-bold text-xl mt-3 text-primary">Rp {total.toLocaleString('id-ID')}</p>
                 </div>
               ) : (

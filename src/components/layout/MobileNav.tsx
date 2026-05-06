@@ -3,7 +3,7 @@ import { FiHome, FiBox, FiBarChart, FiMenu, FiX } from 'react-icons/fi';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useState } from 'react';
 import { 
-  LayoutDashboard, ShoppingCart, Package, Tags, Users, Wallet, UserCog, FileText, Landmark, Settings, LogOut 
+  LayoutDashboard, ShoppingCart, Package, Tags, Users, Wallet, FileText, Settings, LogOut 
 } from 'lucide-react';
 import { cn } from '@/utils/utils';
 
@@ -25,9 +25,7 @@ export function MobileNav() {
     { name: 'Master Kategori', path: '/kategori', icon: Tags, roles: ['Owner', 'Admin'] },
     { name: 'Pelanggan', path: '/pelanggan', icon: Users, roles: ['Owner', 'Admin', 'Kasir'] },
     { name: 'Biaya Operasional', path: '/biaya-operasional', icon: Wallet, roles: ['Owner', 'Admin', 'Kasir'] },
-    { name: 'Karyawan', path: '/karyawan', icon: UserCog, roles: ['Owner'] },
     { name: 'Laporan Penjualan', path: '/laporan', icon: FileText, roles: ['Owner'] },
-    { name: 'Laporan Gaji', path: '/laporan-gaji', icon: Landmark, roles: ['Owner'] },
     { name: 'Pengaturan', path: '/setting', icon: Settings, roles: ['Owner'] },
   ];
 
@@ -43,7 +41,7 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 w-full bg-white border-t z-50 md:hidden pb-safe">
+      <nav className="fixed bottom-0 w-full bg-background dark:bg-card border-t border-border z-50 md:hidden pb-safe">
         <ul className="flex items-center justify-around h-16">
           {allowedBottomNav.map((item) => {
             const Icon = item.icon;
@@ -52,7 +50,7 @@ export function MobileNav() {
                 <li key={item.name} className="flex-1">
                   <button
                     onClick={() => setIsMenuOpen(true)}
-                    className="flex flex-col items-center justify-center w-full h-full space-y-1 text-gray-500 hover:text-gray-900 transition-colors"
+                    className="flex flex-col items-center justify-center w-full h-full space-y-1 text-muted-foreground hover:text-foreground transition-colors"
                   >
                     <Icon className="w-5 h-5" />
                     <span className="text-[10px] font-medium">{item.name}</span>
@@ -67,7 +65,7 @@ export function MobileNav() {
                   to={item.path!}
                   className={({ isActive }) =>
                     `flex flex-col items-center justify-center w-full h-full space-y-1 transition-colors ${
-                      isActive ? 'text-primary' : 'text-gray-500 hover:text-gray-900'
+                      isActive ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
                     }`
                   }
                 >
@@ -88,16 +86,16 @@ export function MobileNav() {
 
       {/* Full Mobile Menu Overlay */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-[60] bg-white flex flex-col h-full md:hidden">
+        <div className="fixed inset-0 z-[60] bg-background dark:bg-card flex flex-col h-full md:hidden">
           <div className="flex justify-between items-center p-4 border-b">
             <div className="flex items-center">
               <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold mr-3">
                 {user?.username.charAt(0).toUpperCase()}
               </div>
-              <span className="font-bold text-gray-800">{user?.username} <span className="text-xs text-gray-500">({user?.role})</span></span>
+              <span className="font-bold text-foreground">{user?.username} <span className="text-xs text-muted-foreground">({user?.role})</span></span>
             </div>
             <button onClick={() => setIsMenuOpen(false)} className="p-2">
-              <FiX className="w-6 h-6 text-gray-600" />
+              <FiX className="w-6 h-6 text-muted-foreground hover:text-foreground" />
             </button>
           </div>
           
@@ -116,10 +114,10 @@ export function MobileNav() {
                     "flex items-center w-full px-4 py-3 text-sm font-medium rounded-xl transition-colors",
                     isActive 
                       ? "bg-primary/10 text-primary" 
-                      : "text-gray-600 hover:bg-gray-100"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
                   )}
                 >
-                  <Icon className={cn("w-5 h-5 mr-4", isActive ? "text-primary" : "text-gray-500")} />
+                  <Icon className={cn("w-5 h-5 mr-4", isActive ? "text-primary" : "text-muted-foreground")} />
                   {item.name}
                 </button>
               );

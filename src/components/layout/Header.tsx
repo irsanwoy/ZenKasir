@@ -14,7 +14,7 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-40 flex items-center justify-between w-full h-14 px-4 bg-white border-b shadow-sm md:h-16 md:px-6 shrink-0">
+    <header className="sticky top-0 z-40 flex items-center justify-between w-full h-14 px-4 bg-background dark:bg-card border-b border-border shadow-sm md:h-16 md:px-6 shrink-0">
       {/* Mobile view */}
       <div className="flex items-center md:hidden">
         <Store className="w-5 h-5 text-primary mr-2" />
@@ -32,13 +32,13 @@ export function Header() {
       {/* Desktop view */}
       <div className="hidden md:flex items-center w-full justify-between">
         <div className="flex items-center">
-          <Store className="w-5 h-5 text-gray-500 mr-2" />
-          <span className="font-medium text-gray-700">{settings.nama_toko}</span>
+          <Store className="w-5 h-5 text-muted-foreground mr-2" />
+          <span className="font-medium text-foreground">{settings.nama_toko}</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-            <p className="text-xs text-gray-500">{user?.role}</p>
+            <p className="text-sm font-medium text-foreground">{user?.username}</p>
+            <p className="text-xs text-muted-foreground">{user?.role}</p>
           </div>
         </div>
       </div>

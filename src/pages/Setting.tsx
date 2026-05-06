@@ -1,10 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettingStore } from '@/store/useSettingStore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Upload, QrCode, Trash2 } from 'lucide-react';
+import { Download, Upload, QrCode, Trash2, Smartphone } from 'lucide-react';
 import { exportDB, importInto } from 'dexie-export-import';
 import { db } from '@/db/db';
 import { QRCodeSVG } from 'qrcode.react';
@@ -14,6 +14,24 @@ export default function Setting() {
   
   const [formData, setFormData] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
+  const [installable, setInstallable] = useState(!!(window as any).deferredPrompt);
+
+  useEffect(() => {
+    const handleInstallAvailable = () => setInstallable(true);
+    window.addEventListener('pwa-install-available', handleInstallAvailable);
+    return () => window.removeEventListener('pwa-install-available', handleInstallAvailable);
+  }, []);
+
+  const handleInstallApp = async () => {
+    const promptEvent = (window as any).deferredPrompt;
+    if (!promptEvent) return;
+    promptEvent.prompt();
+    const { outcome } = await promptEvent.userChoice;
+    if (outcome === 'accepted') {
+      setInstallable(false);
+      (window as any).deferredPrompt = null;
+    }
+  };
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -144,6 +162,40 @@ export default function Setting() {
                 <p className="text-xs text-muted-foreground">Upload gambar QRIS statis untuk ditampilkan saat pembayaran dengan metode QRIS.</p>
               </div>
             </div>
+            
+            <div className="space-y-2 pt-2 border-t mt-4">
+              <Label>Tampilan Aplikasi</Label>
+              <div className="flex items-center justify-between mt-2 bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-100 dark:border-gray-700">
+                <div className="space-y-0.5 pr-4">
+                  <Label className="text-base font-semibold cursor-pointer" onClick={() => {
+                    const newVal = !formData.is_dark_mode;
+                    setFormData({...formData, is_dark_mode: newVal});
+                    updateSettings({ is_dark_mode: newVal });
+                  }}>Dark Mode</Label>
+                  <p className="text-sm text-muted-foreground">Ubah tampilan menjadi gelap dengan aksen modern.</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={formData.is_dark_mode}
+                  onClick={() => {
+                    const newVal = !formData.is_dark_mode;
+                    setFormData({...formData, is_dark_mode: newVal});
+                    updateSettings({ is_dark_mode: newVal });
+                  }}
+                  className={`relative inline-flex h-7 w-14 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    formData.is_dark_mode ? 'bg-primary' : 'bg-gray-300 dark:bg-gray-600'
+                  }`}
+                >
+                  <span className="sr-only">Toggle Dark Mode</span>
+                  <span
+                    className={`pointer-events-none inline-block h-6 w-6 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out ${
+                      formData.is_dark_mode ? 'translate-x-7' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
 
           </CardContent>
           <CardFooter className="border-t px-6 py-4 flex items-center justify-between">
@@ -197,6 +249,24 @@ export default function Setting() {
               </Button>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Install Aplikasi</CardTitle>
+          <CardDescription>Install POSAI ke layar utama HP atau desktop Anda agar bisa diakses langsung seperti aplikasi bawaan tanpa perlu buka browser berulang kali.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {installable ? (
+            <Button onClick={handleInstallApp} className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white">
+              <Smartphone className="w-4 h-4 mr-2" /> Install Aplikasi Sekarang
+            </Button>
+          ) : (
+            <div className="p-4 bg-gray-50 border rounded-lg text-sm text-gray-600">
+              Aplikasi sudah terinstall atau browser Anda saat ini tidak mendukung fitur instalasi. Jika belum terinstall, coba buka kembali web ini melalui Google Chrome.
+            </div>
+          )}
         </CardContent>
       </Card>
 

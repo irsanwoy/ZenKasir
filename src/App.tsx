@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { initDb } from '@/db/db';
+import { useSettingStore } from '@/store/useSettingStore';
 
 // Layout & Auth
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -16,14 +17,35 @@ import Pelanggan from '@/pages/master/Pelanggan';
 import Laporan from '@/pages/Laporan';
 import Setting from '@/pages/Setting';
 import BiayaOperasional from '@/pages/BiayaOperasional';
-import Karyawan from '@/pages/master/Karyawan';
-import LaporanGaji from '@/pages/LaporanGaji';
 import MenuPublic from '@/pages/MenuPublic';
 
 function App() {
+  const { settings } = useSettingStore();
+
+  useEffect(() => {
+    // Sync Dark Mode
+    if (settings.is_dark_mode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [settings.is_dark_mode]);
+
   useEffect(() => {
     // Initialize DB & Seed data
     initDb().catch(console.error);
+
+    // Tangkap event PWA install
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      (window as any).deferredPrompt = e;
+      window.dispatchEvent(new Event('pwa-install-available'));
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
   }, []);
 
   return (
@@ -44,8 +66,6 @@ function App() {
             
             {/* Owner only */}
             <Route element={<ProtectedRoute allowedRoles={['Owner']} />}>
-              <Route path="/karyawan" element={<Karyawan />} />
-              <Route path="/laporan-gaji" element={<LaporanGaji />} />
               <Route path="/laporan" element={<Laporan />} />
               <Route path="/setting" element={<Setting />} />
             </Route>
