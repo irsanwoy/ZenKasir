@@ -6,7 +6,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Plus, Edit2, Trash2, Wallet, ClipboardList, MessageCircle } from 'lucide-react';
+import { Wallet, ClipboardList, MessageCircle } from 'lucide-react';
+import { formatRupiah, parseRupiah } from '@/utils/utils';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 
@@ -27,7 +28,7 @@ export default function Pelanggan() {
 
   const [isPelunasanOpen, setIsPelunasanOpen] = useState(false);
   const [pelangganPelunasan, setPelangganPelunasan] = useState<any>(null);
-  const [jumlahBayar, setJumlahBayar] = useState<number | ''>('');
+  const [jumlahBayar, setJumlahBayar] = useState<number>(0);
 
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedHistoryPelanggan, setSelectedHistoryPelanggan] = useState<any>(null);
@@ -82,7 +83,7 @@ export default function Pelanggan() {
   const closePelunasan = () => {
     setIsPelunasanOpen(false);
     setPelangganPelunasan(null);
-    setJumlahBayar('');
+    setJumlahBayar(0);
   };
 
   const openHistory = async (p: any) => {
@@ -103,9 +104,9 @@ export default function Pelanggan() {
 
   const handlePelunasan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!pelangganPelunasan || !jumlahBayar || Number(jumlahBayar) <= 0) return;
+    if (!pelangganPelunasan || jumlahBayar <= 0) return;
     
-    let sisaBayar = Number(jumlahBayar);
+    let sisaBayar = jumlahBayar;
     
     try {
       await db.transaction('rw', db.transaksi, async () => {
@@ -280,12 +281,18 @@ export default function Pelanggan() {
           <div>
             <label className="text-sm font-medium">Jumlah Bayar</label>
             <Input 
-              type="number"
-              value={jumlahBayar} 
-              onChange={(e) => setJumlahBayar(Number(e.target.value))} 
+              type="text"
+              value={formatRupiah(jumlahBayar)} 
+              onChange={(e) => {
+                const val = parseRupiah(e.target.value);
+                if (val > (pelangganPelunasan?.totalHutang || 0)) {
+                  setJumlahBayar(pelangganPelunasan?.totalHutang || 0);
+                } else {
+                  setJumlahBayar(val);
+                }
+              }} 
               placeholder="0" 
               required
-              max={pelangganPelunasan?.totalHutang || 0}
             />
           </div>
           <div className="flex justify-end space-x-2 pt-4">

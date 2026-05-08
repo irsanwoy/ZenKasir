@@ -15,7 +15,6 @@ interface StrukPrintProps {
     kasir: string;
     items: StrukItem[];
     subtotal: number;
-    diskon: number;
     total: number;
     bayar: number;
     kembalian: number;
@@ -26,7 +25,7 @@ interface StrukPrintProps {
 export const StrukPrint = React.forwardRef<HTMLDivElement, StrukPrintProps>(
   ({ transaksi }, ref) => {
     const { settings } = useSettingStore();
-    const { items, kode, tanggal, kasir, subtotal, diskon, total, bayar, kembalian, metode_bayar } = transaksi;
+    const { items, kode, tanggal, kasir, subtotal, total, bayar, kembalian, metode_bayar } = transaksi;
 
     return (
       <div ref={ref} className="hidden print:block font-mono text-[12px] leading-tight text-black p-4 w-[58mm] mx-auto bg-white">
@@ -59,12 +58,7 @@ export const StrukPrint = React.forwardRef<HTMLDivElement, StrukPrintProps>(
             <span>Subtotal:</span>
             <span>{subtotal.toLocaleString('id-ID')}</span>
           </div>
-          {diskon > 0 && (
-            <div className="flex justify-between">
-              <span>Diskon:</span>
-              <span>-{diskon.toLocaleString('id-ID')}</span>
-            </div>
-          )}
+
           <div className="flex justify-between font-bold text-[14px] mt-1">
             <span>Total:</span>
             <span>{total.toLocaleString('id-ID')}</span>

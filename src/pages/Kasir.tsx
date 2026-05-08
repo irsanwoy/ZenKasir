@@ -13,10 +13,12 @@ import { Label } from '@/components/ui/label';
 import { Search, Plus, Minus, Printer, ShoppingCart, ScanLine } from 'lucide-react';
 import { StrukPrint } from '@/components/StrukPrint';
 import { Sheet } from '@/components/ui/sheet';
+import { Modal } from '@/components/ui/modal';
+import { formatRupiah, parseRupiah } from '@/utils/utils';
 
 export default function Kasir() {
   const { user } = useAuthStore();
-  const { items, addItem, updateQty, removeItem, diskon, setDiskon, pelanggan_id, setPelanggan, clearCart, getTotal } = useCartStore();
+  const { items, addItem, updateQty, removeItem, pelanggan_id, setPelanggan, clearCart, getTotal } = useCartStore();
   const { settings } = useSettingStore();
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -26,6 +28,8 @@ export default function Kasir() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [isAddPelangganOpen, setIsAddPelangganOpen] = useState(false);
+  const [newPelangganName, setNewPelangganName] = useState('');
 
   useEffect(() => {
     let scanner: Html5QrcodeScanner | null = null;
@@ -121,7 +125,10 @@ export default function Kasir() {
 
   const handleCheckout = async () => {
     if (items.length === 0) return alert('Keranjang kosong');
-    if (metodeBayar === 'Bon' && !pelanggan_id) return alert('Pilih pelanggan untuk pembayaran Bon');
+    if (metodeBayar === 'Bon' && !pelanggan_id) {
+      alert('Pilih atau Tambah pelanggan untuk pembayaran Bon');
+      return;
+    }
     if (metodeBayar === 'Tunai' && bayar < total) return alert('Uang bayar kurang');
 
     try {
@@ -137,7 +144,6 @@ export default function Kasir() {
           user_id: user!.id,
           pelanggan_id: pelanggan_id || undefined,
           subtotal: items.reduce((sum, i) => sum + i.subtotal, 0),
-          diskon,
           total,
           bayar: metodeBayar === 'QRIS' ? total : (metodeBayar === 'Bon' ? 0 : bayar),
           kembalian: metodeBayar === 'QRIS' ? 0 : (metodeBayar === 'Bon' ? 0 : kembalian),
@@ -171,7 +177,6 @@ export default function Kasir() {
           kasir: user!.username,
           items: items.map(i => ({ nama: i.nama, qty: i.qty, harga: i.harga, subtotal: i.subtotal })),
           subtotal: items.reduce((sum, i) => sum + i.subtotal, 0),
-          diskon,
           total,
           bayar: metodeBayar === 'QRIS' ? total : (metodeBayar === 'Bon' ? 0 : bayar),
           kembalian: metodeBayar === 'QRIS' ? 0 : (metodeBayar === 'Bon' ? 0 : kembalian),
@@ -348,15 +353,7 @@ export default function Kasir() {
           </Table>
         </CardContent>
         <div className="shrink-0 border-t p-4 pb-24 lg:pb-4 bg-muted/30 space-y-3 overflow-y-auto max-h-[60vh] lg:max-h-none">
-          <div className="flex justify-between items-center text-sm">
-            <span>Diskon (Rp)</span>
-            <Input 
-              type="number" 
-              className="w-32 h-8 text-right" 
-              value={diskon || ''} 
-              onChange={(e) => setDiskon(Number(e.target.value))}
-            />
-          </div>
+
           <div className="flex justify-between items-center font-bold text-lg">
             <span>Total</span>
             <span className="text-primary">Rp {total.toLocaleString('id-ID')}</span>
@@ -371,7 +368,12 @@ export default function Kasir() {
                   variant={metodeBayar === m ? 'default' : 'outline'}
                   size="sm"
                   className="flex-1"
-                  onClick={() => setMetodeBayar(m as any)}
+                  onClick={() => {
+                    setMetodeBayar(m as any);
+                    if (m === 'Bon' && !pelanggan_id) {
+                      // Optional: focus or prompt
+                    }
+                  }}
                 >
                   {m}
                 </Button>
@@ -381,7 +383,17 @@ export default function Kasir() {
 
           {metodeBayar === 'Bon' && (
             <div className="space-y-2">
-              <Label>Pelanggan</Label>
+              <div className="flex justify-between items-center">
+                <Label>Pelanggan (Wajib)</Label>
+                <Button 
+                  variant="link" 
+                  size="sm" 
+                  className="h-auto p-0 text-xs"
+                  onClick={() => setIsAddPelangganOpen(true)}
+                >
+                  + Pelanggan Baru
+                </Button>
+              </div>
               <select 
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
                 value={pelanggan_id || ''}
@@ -400,10 +412,10 @@ export default function Kasir() {
               <div className="flex justify-between items-center text-sm">
                 <span>Bayar</span>
                 <Input 
-                  type="number" 
+                  type="text" 
                   className="w-32 h-8 text-right font-medium" 
-                  value={bayar || ''} 
-                  onChange={(e) => setBayar(Number(e.target.value))}
+                  value={formatRupiah(bayar)} 
+                  onChange={(e) => setBayar(parseRupiah(e.target.value))} 
                 />
               </div>
               <div className="flex justify-between items-center text-sm">
@@ -438,6 +450,37 @@ export default function Kasir() {
         </div>
         </Card>
       </Sheet>
+
+      {/* Modal Tambah Pelanggan Cepat */}
+      <Modal 
+        isOpen={isAddPelangganOpen} 
+        onClose={() => setIsAddPelangganOpen(false)} 
+        title="Tambah Pelanggan Baru"
+      >
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Nama Pelanggan</Label>
+            <Input 
+              value={newPelangganName}
+              onChange={(e) => setNewPelangganName(e.target.value)}
+              placeholder="Masukkan nama..."
+              autoFocus
+            />
+          </div>
+          <Button 
+            className="w-full"
+            onClick={async () => {
+              if (!newPelangganName.trim()) return;
+              const id = await db.pelanggan.add({ nama: newPelangganName, no_hp: '' });
+              setPelanggan(id as number);
+              setNewPelangganName('');
+              setIsAddPelangganOpen(false);
+            }}
+          >
+            Simpan & Pilih
+          </Button>
+        </div>
+      </Modal>
 
       {/* Toast Notification */}
       {toastMessage && (

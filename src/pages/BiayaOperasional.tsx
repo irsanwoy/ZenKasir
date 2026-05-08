@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Plus, Trash2 } from 'lucide-react';
+import { formatRupiah, parseRupiah } from '@/utils/utils';
 
 export default function BiayaOperasional() {
   const { user } = useAuthStore();
@@ -24,13 +25,13 @@ export default function BiayaOperasional() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nominal || Number(formData.nominal) <= 0) return;
+    if (!formData.nominal || parseRupiah(formData.nominal) <= 0) return;
 
     try {
       await db.biaya_operasional.add({
         tanggal: new Date(),
         kategori: formData.kategori,
-        nominal: Number(formData.nominal),
+        nominal: parseRupiah(formData.nominal),
         keterangan: formData.keterangan,
         user_id: user?.id || 1
       });
@@ -124,12 +125,11 @@ export default function BiayaOperasional() {
           <div>
             <label className="text-sm font-medium">Nominal (Rp)</label>
             <Input 
-              type="number"
-              value={formData.nominal} 
+              type="text"
+              value={formatRupiah(formData.nominal)} 
               onChange={(e) => setFormData({...formData, nominal: e.target.value})} 
               placeholder="0" 
               required
-              min="1"
             />
           </div>
           <div>

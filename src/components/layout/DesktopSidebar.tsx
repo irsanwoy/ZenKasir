@@ -27,7 +27,6 @@ export function DesktopSidebar() {
     { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['Owner', 'Admin'] },
     { name: 'Kasir', path: '/kasir', icon: ShoppingCart, roles: ['Owner', 'Admin', 'Kasir'] },
     { name: 'Master Produk', path: '/produk', icon: Package, roles: ['Owner', 'Admin'] },
-    { name: 'Master Kategori', path: '/kategori', icon: Tags, roles: ['Owner', 'Admin'] },
     { name: 'Pelanggan', path: '/pelanggan', icon: Users, roles: ['Owner', 'Admin', 'Kasir'] },
     { name: 'Biaya Operasional', path: '/biaya-operasional', icon: Wallet, roles: ['Owner', 'Admin', 'Kasir'] },
     { name: 'Laporan Penjualan', path: '/laporan', icon: FileText, roles: ['Owner'] },

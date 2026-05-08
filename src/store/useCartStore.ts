@@ -13,13 +13,11 @@ export interface CartItem {
 interface CartState {
   items: CartItem[];
   pelanggan_id: number | null;
-  diskon: number;
   
   addItem: (item: Omit<CartItem, 'subtotal'>) => void;
   updateQty: (produk_id: number, qty: number) => void;
   removeItem: (produk_id: number) => void;
   setPelanggan: (id: number | null) => void;
-  setDiskon: (diskon: number) => void;
   clearCart: () => void;
   
   // Computed (accessed via store.getState() or hooks)
@@ -29,7 +27,6 @@ interface CartState {
 export const useCartStore = create<CartState>((set, get) => ({
   items: [],
   pelanggan_id: null,
-  diskon: 0,
   
   addItem: (newItem) => {
     set((state) => {
@@ -67,13 +64,11 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
   
   setPelanggan: (id) => set({ pelanggan_id: id }),
-  setDiskon: (diskon) => set({ diskon }),
   
-  clearCart: () => set({ items: [], pelanggan_id: null, diskon: 0 }),
+  clearCart: () => set({ items: [], pelanggan_id: null }),
   
   getTotal: () => {
-    const { items, diskon } = get();
-    const subtotal = items.reduce((sum, item) => sum + item.subtotal, 0);
-    return Math.max(0, subtotal - diskon);
+    const { items } = get();
+    return items.reduce((sum, item) => sum + item.subtotal, 0);
   }
 }));

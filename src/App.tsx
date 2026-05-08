@@ -12,12 +12,10 @@ import Login from '@/pages/Login';
 import Dashboard from '@/pages/Dashboard';
 import Kasir from '@/pages/Kasir';
 import Produk from '@/pages/master/Produk';
-import Kategori from '@/pages/master/Kategori';
 import Pelanggan from '@/pages/master/Pelanggan';
 import Laporan from '@/pages/Laporan';
 import Setting from '@/pages/Setting';
 import BiayaOperasional from '@/pages/BiayaOperasional';
-import MenuPublic from '@/pages/MenuPublic';
 
 function App() {
   const { settings } = useSettingStore();
@@ -52,7 +50,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route path="/menu" element={<MenuPublic />} />
+        
         
         {/* Protected Routes */}
         <Route element={<ProtectedRoute />}>
@@ -61,7 +59,6 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['Owner', 'Admin']} />}>
               <Route path="/" element={<Dashboard />} />
               <Route path="/produk" element={<Produk />} />
-              <Route path="/kategori" element={<Kategori />} />
             </Route>
             
             {/* Owner only */}

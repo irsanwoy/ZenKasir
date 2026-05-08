@@ -8,26 +8,19 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { Plus, Edit2, Trash2, Camera, ScanLine } from 'lucide-react';
+import { formatRupiah, parseRupiah } from '@/utils/utils';
 
 export default function Produk() {
-  const produks = useLiveQuery(async () => {
-    const prods = await db.produk.toArray();
-    const kats = await db.kategori.toArray();
-    return prods.map(p => ({
-      ...p,
-      kategori_nama: kats.find(k => k.id === p.kategori_id)?.nama || 'Unknown'
-    }));
-  });
+  const produks = useLiveQuery(() => db.produk.toArray());
   
-  const kategoris = useLiveQuery(() => db.kategori.toArray());
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   
   const initialForm = {
-    sku: '', barcode: '', nama: '', kategori_id: 0, 
+    sku: '', barcode: '', nama: '', 
     harga_modal: 0, harga_jual: 0, stok: 0, 
-    tipe: 'barang' as 'barang' | 'jasa', kelola_stok: true, gambar: ''
+    kelola_stok: true, gambar: ''
   };
   const [formData, setFormData] = useState(initialForm);
   const [isScanning, setIsScanning] = useState(false);
@@ -94,7 +87,7 @@ export default function Produk() {
     if (currentData) {
       setFormData(currentData);
     } else {
-      setFormData({ ...initialForm, kategori_id: kategoris?.[0]?.id || 0 });
+      setFormData(initialForm);
     }
     setIsModalOpen(true);
   };
@@ -108,7 +101,7 @@ export default function Produk() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.nama.trim() || !formData.kategori_id) return alert('Data tidak lengkap');
+    if (!formData.nama.trim()) return alert('Data tidak lengkap');
 
     try {
       if (formData.barcode) {
@@ -123,11 +116,10 @@ export default function Produk() {
       const dataToSave = {
         ...formData,
         sku: finalSku,
-        kategori_id: Number(formData.kategori_id),
         harga_modal: Number(formData.harga_modal),
         harga_jual: Number(formData.harga_jual),
         stok: Number(formData.stok),
-        kelola_stok: formData.tipe === 'barang' ? formData.kelola_stok : false,
+        kelola_stok: formData.kelola_stok,
       };
 
       if (editId) {
@@ -169,7 +161,6 @@ export default function Produk() {
               <TableRow>
                 <TableHead>SKU/Barcode</TableHead>
                 <TableHead>Nama Produk</TableHead>
-                <TableHead>Kategori</TableHead>
                 <TableHead className="text-right">Harga Modal</TableHead>
                 <TableHead className="text-right">Harga Jual</TableHead>
                 <TableHead className="text-right">Stok</TableHead>
@@ -184,7 +175,6 @@ export default function Produk() {
                     <div className="text-xs text-muted-foreground">{p.barcode}</div>
                   </TableCell>
                   <TableCell className="font-medium">{p.nama}</TableCell>
-                  <TableCell>{(p as any).kategori_nama}</TableCell>
                   <TableCell className="text-right">Rp {p.harga_modal.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right">Rp {p.harga_jual.toLocaleString('id-ID')}</TableCell>
                   <TableCell className="text-right">
@@ -232,7 +222,7 @@ export default function Produk() {
               </Button>
             </div>
             {isScanning && (
-              <div id="reader" className="w-full mt-2 border rounded-md overflow-hidden bg-white"></div>
+              <div id="reader" className="w-full mt-2 border rounded-md overflow-hidden bg-background"></div>
             )}
           </div>
           
@@ -247,7 +237,7 @@ export default function Produk() {
                   </button>
                 </div>
               ) : (
-                <div className="w-16 h-16 border rounded-md bg-gray-100 flex items-center justify-center text-gray-400">
+                <div className="w-16 h-16 border rounded-md bg-muted flex items-center justify-center text-muted-foreground">
                   <Camera className="w-6 h-6" />
                 </div>
               )}
@@ -269,78 +259,49 @@ export default function Produk() {
             />
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Kategori</label>
-            <select 
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-              value={formData.kategori_id}
-              onChange={(e) => setFormData({...formData, kategori_id: Number(e.target.value)})}
-              required
-            >
-              <option value={0} disabled>Pilih Kategori</option>
-              {kategoris?.map(k => (
-                <option key={k.id} value={k.id}>{k.nama}</option>
-              ))}
-            </select>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Tipe</label>
-            <select 
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-              value={formData.tipe}
-              onChange={(e) => setFormData({...formData, tipe: e.target.value as 'barang' | 'jasa'})}
-            >
-              <option value="barang">Barang</option>
-              <option value="jasa">Jasa</option>
-            </select>
-          </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Harga Modal</label>
             <Input 
-              type="number"
-              value={formData.harga_modal} 
-              onChange={(e) => setFormData({...formData, harga_modal: Number(e.target.value)})} 
+              type="text"
+              value={formatRupiah(formData.harga_modal)} 
+              onChange={(e) => setFormData({...formData, harga_modal: parseRupiah(e.target.value)})} 
               required
             />
           </div>
           <div className="space-y-2">
             <label className="text-sm font-medium">Harga Jual</label>
             <Input 
-              type="number"
-              value={formData.harga_jual} 
-              onChange={(e) => setFormData({...formData, harga_jual: Number(e.target.value)})} 
+              type="text"
+              value={formatRupiah(formData.harga_jual)} 
+              onChange={(e) => setFormData({...formData, harga_jual: parseRupiah(e.target.value)})} 
               required
             />
           </div>
 
-          {formData.tipe === 'barang' && (
-            <>
-              <div className="space-y-2 flex flex-col justify-center">
-                <label className="text-sm font-medium flex items-center space-x-2">
-                  <input 
-                    type="checkbox" 
-                    checked={formData.kelola_stok}
-                    onChange={(e) => setFormData({...formData, kelola_stok: e.target.checked})}
-                    className="rounded border-gray-300"
-                  />
-                  <span>Kelola Stok?</span>
-                </label>
-              </div>
-              
-              {formData.kelola_stok && (
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Stok Awal</label>
-                  <Input 
-                    type="number"
-                    value={formData.stok} 
-                    onChange={(e) => setFormData({...formData, stok: Number(e.target.value)})} 
-                    disabled={!!editId} // Stok awal tidak bisa diedit setelah dibuat, gunakan modul stok
-                  />
-                </div>
-              )}
-            </>
+          <div className="space-y-2 flex flex-col justify-center">
+            <label className="text-sm font-medium flex items-center space-x-2">
+              <input 
+                type="checkbox" 
+                checked={formData.kelola_stok}
+                onChange={(e) => setFormData({...formData, kelola_stok: e.target.checked})}
+                className="rounded border-gray-300"
+              />
+              <span>Kelola Stok?</span>
+            </label>
+          </div>
+          
+          {formData.kelola_stok && (
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Stok Awal</label>
+              <Input 
+                type="number"
+                value={formData.stok} 
+                onChange={(e) => setFormData({...formData, stok: Number(e.target.value)})} 
+                disabled={!!editId}
+              />
+            </div>
           )}
 
           <div className="col-span-2 flex justify-end space-x-2 pt-4">

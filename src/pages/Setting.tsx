@@ -270,28 +270,6 @@ export default function Setting() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>QR Menu Pelanggan</CardTitle>
-          <CardDescription>Cetak QR Code ini agar pelanggan bisa melihat menu dari HP mereka.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col items-center justify-center space-y-4 py-6">
-          <div className="p-4 bg-white border-2 border-dashed rounded-xl">
-            <QRCodeSVG 
-              value={`${window.location.origin}/menu`} 
-              size={200}
-              level="H"
-              includeMargin={true}
-            />
-          </div>
-          <p className="text-sm text-center text-muted-foreground max-w-sm">
-            Catatan: Karena sistem ini Offline, pelanggan harus terhubung ke WiFi yang sama dengan kasir agar bisa membuka menu ini.
-          </p>
-          <Button onClick={() => window.open(`${window.location.origin}/menu`, '_blank')} variant="outline">
-            <QrCode className="w-4 h-4 mr-2" /> Buka Preview Menu
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }
