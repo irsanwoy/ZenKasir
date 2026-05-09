@@ -6,6 +6,7 @@ import { useSettingStore } from '@/store/useSettingStore';
 // Layout & Auth
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { LicenseGuard } from '@/components/LicenseGuard';
 
 // Pages
 import Login from '@/pages/Login';
@@ -16,6 +17,7 @@ import Pelanggan from '@/pages/master/Pelanggan';
 import Laporan from '@/pages/Laporan';
 import Setting from '@/pages/Setting';
 import BiayaOperasional from '@/pages/BiayaOperasional';
+import Aktivasi from '@/pages/Aktivasi';
 
 function App() {
   const { settings } = useSettingStore();
@@ -49,28 +51,32 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/login" element={<Login />} />
+        <Route path="/aktivasi" element={<Aktivasi />} />
         
-        
-        {/* Protected Routes */}
-        <Route element={<ProtectedRoute />}>
-          <Route element={<AppLayout />}>
-            {/* Dashboard: Owner & Admin only */}
-            <Route element={<ProtectedRoute allowedRoles={['Owner', 'Admin']} />}>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/produk" element={<Produk />} />
-            </Route>
-            
-            {/* Owner only */}
-            <Route element={<ProtectedRoute allowedRoles={['Owner']} />}>
-              <Route path="/laporan" element={<Laporan />} />
-              <Route path="/setting" element={<Setting />} />
-            </Route>
+        {/* Protected by License */}
+        <Route element={<LicenseGuard />}>
+          <Route path="/login" element={<Login />} />
+          
+          {/* Protected Routes (Auth) */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
+              {/* Dashboard: Owner & Admin only */}
+              <Route element={<ProtectedRoute allowedRoles={['Owner', 'Admin']} />}>
+                <Route path="/" element={<Dashboard />} />
+                <Route path="/produk" element={<Produk />} />
+              </Route>
+              
+              {/* Owner only */}
+              <Route element={<ProtectedRoute allowedRoles={['Owner']} />}>
+                <Route path="/laporan" element={<Laporan />} />
+                <Route path="/setting" element={<Setting />} />
+              </Route>
 
-            {/* All roles (Owner, Admin, Kasir) */}
-            <Route path="/kasir" element={<Kasir />} />
-            <Route path="/pelanggan" element={<Pelanggan />} />
-            <Route path="/biaya-operasional" element={<BiayaOperasional />} />
+              {/* All roles (Owner, Admin, Kasir) */}
+              <Route path="/kasir" element={<Kasir />} />
+              <Route path="/pelanggan" element={<Pelanggan />} />
+              <Route path="/biaya-operasional" element={<BiayaOperasional />} />
+            </Route>
           </Route>
         </Route>
 
