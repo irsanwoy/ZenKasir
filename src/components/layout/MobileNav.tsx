@@ -1,16 +1,11 @@
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { FiHome, FiBox, FiBarChart, FiMenu, FiX } from 'react-icons/fi';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
-import { useState } from 'react';
 import { 
   LayoutDashboard, ShoppingCart, Package, Users, Wallet, FileText, Settings, LogOut 
 } from 'lucide-react';
-import { cn } from '@/utils/utils';
 
 export function MobileNav() {
   const { user, logout } = useAuthStore();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const location = useLocation();
   const navigate = useNavigate();
 
   const handleLogout = () => {

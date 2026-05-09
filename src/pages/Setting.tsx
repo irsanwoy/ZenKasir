@@ -4,10 +4,10 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Upload, QrCode, Trash2, Smartphone } from 'lucide-react';
+import { Download, Upload, Trash2, Smartphone } from 'lucide-react';
 import { exportDB, importInto } from 'dexie-export-import';
 import { db } from '@/db/db';
-import { QRCodeSVG } from 'qrcode.react';
+
 
 export default function Setting() {
   const { settings, updateSettings } = useSettingStore();

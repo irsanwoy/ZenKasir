@@ -116,6 +116,8 @@ export default function Produk() {
       const dataToSave = {
         ...formData,
         sku: finalSku,
+        kategori_id: 0,
+        tipe: 'barang' as const,
         harga_modal: Number(formData.harga_modal),
         harga_jual: Number(formData.harga_jual),
         stok: Number(formData.stok),

@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Wallet, ClipboardList, MessageCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Wallet, ClipboardList, MessageCircle } from 'lucide-react';
 import { formatRupiah, parseRupiah } from '@/utils/utils';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';

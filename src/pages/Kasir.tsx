@@ -144,6 +144,7 @@ export default function Kasir() {
           user_id: user!.id,
           pelanggan_id: pelanggan_id || undefined,
           subtotal: items.reduce((sum, i) => sum + i.subtotal, 0),
+          diskon: 0,
           total,
           bayar: metodeBayar === 'QRIS' ? total : (metodeBayar === 'Bon' ? 0 : bayar),
           kembalian: metodeBayar === 'QRIS' ? 0 : (metodeBayar === 'Bon' ? 0 : kembalian),

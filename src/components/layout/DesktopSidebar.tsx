@@ -4,7 +4,6 @@ import {
   LayoutDashboard, 
   ShoppingCart, 
   Package, 
-  Tags, 
   Users, 
   Settings,
   LogOut,
