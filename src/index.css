@@ -156,3 +156,46 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Custom styles for html5-qrcode scanner */
+#kasir-reader, #reader {
+  border: none !important;
+  @apply !bg-transparent;
+}
+
+#kasir-reader button, 
+#reader button,
+[id*='html5-qrcode-button'] {
+  @apply !bg-primary !text-primary-foreground hover:!bg-primary/90 !px-4 !py-2 !rounded-md !font-medium !text-sm !transition-colors !mb-2 !cursor-pointer !w-full !border-none;
+  display: inline-block !important;
+}
+
+#kasir-reader select, 
+#reader select {
+  @apply !flex !h-10 !w-full !items-center !justify-between !rounded-md !border !border-input !bg-background !px-3 !py-2 !text-sm !ring-offset-background focus:!outline-none focus:!ring-2 focus:!ring-ring focus:!ring-offset-2 !mb-4;
+}
+
+#kasir-reader a, 
+#reader a {
+  @apply !text-primary hover:!underline !text-sm !cursor-pointer !mt-2 !mb-2 !block !text-center;
+}
+
+#kasir-reader__dashboard_section_csr span, 
+#reader__dashboard_section_csr span {
+  @apply !flex !flex-col !gap-2;
+}
+
+#kasir-reader input[type="file"], 
+#reader input[type="file"] {
+  @apply !flex !h-10 !w-full !rounded-md !border !border-input !bg-background !px-3 !py-2 !text-sm !mb-2;
+}
+
+#kasir-reader__scan_region, 
+#reader__scan_region {
+  @apply !flex !justify-center !items-center !bg-muted/10 !rounded-lg !overflow-hidden !mt-2 !border-none;
+}
+
+#kasir-reader__scan_region img, 
+#reader__scan_region img {
+  @apply !rounded-md !max-w-full;
+}

@@ -7,27 +7,16 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Trash2 } from 'lucide-react';
+import { Calendar, Trash2 } from 'lucide-react';
 
 export default function Laporan() {
-  const [filterType, setFilterType] = useState<'day' | 'month' | 'year'>('day');
-  const [dateStr, setDateStr] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [monthStr, setMonthStr] = useState(format(new Date(), 'yyyy-MM'));
-  const [yearStr, setYearStr] = useState(format(new Date(), 'yyyy'));
+  const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-01'));
+  const [endDate, setEndDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  const dateRange = (() => {
-    if (filterType === 'day') {
-      const d = new Date(dateStr);
-      return { start: startOfDay(d), end: endOfDay(d) };
-    } else if (filterType === 'month') {
-      const d = new Date(monthStr + '-01');
-      return { start: startOfMonth(d), end: endOfMonth(d) };
-    } else {
-      const d = new Date(yearStr + '-01-01');
-      return { start: startOfYear(d), end: endOfYear(d) };
-    }
-  })();
+  const dateRange = {
+    start: startOfDay(new Date(startDate)),
+    end: endOfDay(new Date(endDate))
+  };
 
   const transaksiList = useLiveQuery(async () => {
     const trx = await db.transaksi
@@ -41,14 +30,14 @@ export default function Laporan() {
       ...t,
       kasir_nama: users.find(u => u.id === t.user_id)?.username || 'Unknown'
     }));
-  }, [filterType, dateStr, monthStr, yearStr]);
+  }, [startDate, endDate]);
 
   const biayaList = useLiveQuery(async () => {
     return await db.biaya_operasional
       .where('tanggal')
       .between(dateRange.start, dateRange.end, true, true)
       .toArray();
-  }, [filterType, dateStr, monthStr, yearStr]);
+  }, [startDate, endDate]);
 
   const analisisProduk = useLiveQuery(async () => {
     const trxIds = (await db.transaksi
@@ -74,15 +63,13 @@ export default function Laporan() {
       kurangLaris: [...results].filter(r => r.qty > 0).sort((a, b) => a.qty - b.qty).slice(0, 5),
       tidakLaku: results.filter(r => r.qty === 0).slice(0, 10)
     };
-  }, [filterType, dateStr, monthStr, yearStr]);
+  }, [startDate, endDate]);
 
   const totalBiaya = biayaList?.reduce((acc, b) => acc + b.nominal, 0) || 0;
 
   const summary = transaksiList?.reduce((acc, t) => {
     acc.omset += t.total;
     acc.transaksi += 1;
-    // Calculate Laba Kotor = Total (Omset) - Modal
-    // But since `transaksi` doesn't store modal per item natively unless we calculate it...
     return acc;
   }, { omset: 0, transaksi: 0 });
 
@@ -114,53 +101,36 @@ export default function Laporan() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-        <div className="space-y-1 w-full md:w-auto">
-          <Label>Filter Berdasarkan</Label>
-          <div className="flex gap-2">
-            <Button 
-              variant={filterType === 'day' ? 'default' : 'outline'} 
-              size="sm" 
-              onClick={() => setFilterType('day')}
-            >
-              Hari
-            </Button>
-            <Button 
-              variant={filterType === 'month' ? 'default' : 'outline'} 
-              size="sm" 
-              onClick={() => setFilterType('month')}
-            >
-              Bulan
-            </Button>
-            <Button 
-              variant={filterType === 'year' ? 'default' : 'outline'} 
-              size="sm" 
-              onClick={() => setFilterType('year')}
-            >
-              Tahun
-            </Button>
+      <div className="bg-card p-4 rounded-xl border border-border shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-primary/10 p-2 rounded-lg">
+            <Calendar className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="font-bold text-lg leading-none">Laporan Analisis</h2>
+            <p className="text-xs text-muted-foreground mt-1">Pantau performa bisnis Anda</p>
           </div>
         </div>
 
-        <div className="w-full md:w-48 space-y-1">
-          <Label>Pilih {filterType === 'day' ? 'Tanggal' : filterType === 'month' ? 'Bulan' : 'Tahun'}</Label>
-          {filterType === 'day' && (
-            <Input type="date" value={dateStr} onChange={(e) => setDateStr(e.target.value)} />
-          )}
-          {filterType === 'month' && (
-            <Input type="month" value={monthStr} onChange={(e) => setMonthStr(e.target.value)} />
-          )}
-          {filterType === 'year' && (
-            <select 
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm"
-              value={yearStr}
-              onChange={(e) => setYearStr(e.target.value)}
-            >
-              {[2024, 2025, 2026, 2027].map(y => (
-                <option key={y} value={y.toString()}>{y}</option>
-              ))}
-            </select>
-          )}
+        <div className="flex items-center bg-gray-50 dark:bg-gray-800 p-1 rounded-lg border border-gray-100 dark:border-gray-700 w-full sm:w-auto">
+          <div className="flex items-center px-3 gap-2 border-r">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Dari</span>
+            <input 
+              type="date" 
+              value={startDate} 
+              onChange={(e) => setStartDate(e.target.value)}
+              className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer"
+            />
+          </div>
+          <div className="flex items-center px-3 gap-2">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase">Sampai</span>
+            <input 
+              type="date" 
+              value={endDate} 
+              onChange={(e) => setEndDate(e.target.value)}
+              className="bg-transparent text-sm font-medium focus:outline-none cursor-pointer"
+            />
+          </div>
         </div>
       </div>
 

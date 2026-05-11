@@ -4,17 +4,46 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Download, Upload, Trash2, Smartphone } from 'lucide-react';
+import { Download, Upload, Trash2, Smartphone, Database } from 'lucide-react';
 import { exportDB, importInto } from 'dexie-export-import';
 import { db } from '@/db/db';
+import { useAuthStore } from '@/store/useAuthStore';
+import bcrypt from 'bcryptjs';
+import { Info, Lock, User as UserIcon } from 'lucide-react';
+import { seedDummyData } from '@/utils/seedData';
 
 
 export default function Setting() {
   const { settings, updateSettings } = useSettingStore();
-  
+  const { user, login } = useAuthStore();
   const [formData, setFormData] = useState(settings);
   const [isSaved, setIsSaved] = useState(false);
   const [installable, setInstallable] = useState(!!(window as any).deferredPrompt);
+
+  // State untuk Ganti Akun
+  const [accountForm, setAccountForm] = useState({
+    username: user?.username || '',
+    oldPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [accountStatus, setAccountStatus] = useState({ type: '', message: '' });
+
+  const [isSeeding, setIsSeeding] = useState(false);
+
+  const handleSeedData = async () => {
+    if (window.confirm('Aplikasi akan mengisi database dengan data demo (Pelanggan, Transaksi acak 2 tahun, Biaya). Lanjutkan?')) {
+      setIsSeeding(true);
+      const success = await seedDummyData();
+      setIsSeeding(false);
+      if (success) {
+        alert('Berhasil generate data demo! Silakan cek Dashboard dan Laporan.');
+        window.location.reload();
+      } else {
+        alert('Gagal generate data. Pastikan Anda sudah login dan memiliki produk.');
+      }
+    }
+  };
 
   useEffect(() => {
     const handleInstallAvailable = () => setInstallable(true);
@@ -99,6 +128,50 @@ export default function Setting() {
       } else {
         alert('Konfirmasi dibatalkan atau kata yang diketik salah.');
       }
+    }
+  };
+
+  const handleUpdateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAccountStatus({ type: '', message: '' });
+
+    if (!user) return;
+
+    try {
+      // 1. Ambil data user dari DB
+      const dbUser = await db.users.get(user.id);
+      if (!dbUser) throw new Error('User tidak ditemukan');
+
+      // 2. Validasi Password Lama
+      const isMatch = bcrypt.compareSync(accountForm.oldPassword, dbUser.password || '');
+      if (!isMatch) {
+        setAccountStatus({ type: 'error', message: 'Password lama salah!' });
+        return;
+      }
+
+      // 3. Validasi Password Baru
+      if (accountForm.newPassword && accountForm.newPassword !== accountForm.confirmPassword) {
+        setAccountStatus({ type: 'error', message: 'Konfirmasi password baru tidak cocok!' });
+        return;
+      }
+
+      // 4. Update data
+      const updateData: any = { username: accountForm.username };
+      if (accountForm.newPassword) {
+        const salt = bcrypt.genSaltSync(10);
+        updateData.password = bcrypt.hashSync(accountForm.newPassword, salt);
+      }
+
+      await db.users.update(user.id, updateData);
+
+      // Update Session Store
+      login({ ...user, username: accountForm.username });
+
+      setAccountStatus({ type: 'success', message: 'Akun berhasil diperbarui!' });
+      setAccountForm({ ...accountForm, oldPassword: '', newPassword: '', confirmPassword: '' });
+    } catch (err) {
+      console.error(err);
+      setAccountStatus({ type: 'error', message: 'Terjadi kesalahan saat memperbarui akun.' });
     }
   };
 
@@ -236,6 +309,18 @@ export default function Setting() {
                 </Button>
               </div>
             </div>
+
+            <div className="flex-1 space-y-2 p-4 border rounded-lg bg-purple-50/50">
+              <h3 className="font-semibold text-purple-900">Data Demo (Testing)</h3>
+              <p className="text-sm text-purple-700 pb-2">Generate otomatis 60+ transaksi, pelanggan, & biaya untuk uji coba fitur.</p>
+              <Button 
+                onClick={handleSeedData} 
+                disabled={isSeeding}
+                className="w-full bg-purple-600 hover:bg-purple-700"
+              >
+                <Database className="w-4 h-4 mr-2" /> {isSeeding ? 'Generating...' : 'Generate Data Uji'}
+              </Button>
+            </div>
           </div>
           
           <div className="mt-8 pt-6 border-t border-red-100">
@@ -254,8 +339,86 @@ export default function Setting() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Install Aplikasi</CardTitle>
-          <CardDescription>Install POSAI ke layar utama HP atau desktop Anda agar bisa diakses langsung seperti aplikasi bawaan tanpa perlu buka browser berulang kali.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="w-5 h-5 text-primary" />
+            Keamanan Akun
+          </CardTitle>
+          <CardDescription>Perbarui username atau password login Anda.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleUpdateAccount} className="space-y-4">
+            {accountStatus.message && (
+              <div className={`p-3 text-sm rounded-md border ${
+                accountStatus.type === 'success' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-red-50 border-red-200 text-red-700'
+              }`}>
+                {accountStatus.message}
+              </div>
+            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="acc_username">Username Baru</Label>
+                <div className="relative">
+                  <UserIcon className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    id="acc_username" 
+                    className="pl-9"
+                    value={accountForm.username} 
+                    onChange={(e) => setAccountForm({...accountForm, username: e.target.value})} 
+                    required 
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="old_pass">Password Lama (Konfirmasi)</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <Input 
+                    id="old_pass" 
+                    type="password"
+                    className="pl-9"
+                    placeholder="Masukkan password saat ini"
+                    value={accountForm.oldPassword} 
+                    onChange={(e) => setAccountForm({...accountForm, oldPassword: e.target.value})} 
+                    required 
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t">
+              <div className="space-y-2">
+                <Label htmlFor="new_pass">Password Baru (Opsional)</Label>
+                <Input 
+                  id="new_pass" 
+                  type="password"
+                  placeholder="Kosongkan jika tidak ganti"
+                  value={accountForm.newPassword} 
+                  onChange={(e) => setAccountForm({...accountForm, newPassword: e.target.value})} 
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm_pass">Konfirmasi Password Baru</Label>
+                <Input 
+                  id="confirm_pass" 
+                  type="password"
+                  placeholder="Ulangi password baru"
+                  value={accountForm.confirmPassword} 
+                  onChange={(e) => setAccountForm({...accountForm, confirmPassword: e.target.value})} 
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full md:w-auto">Update Akun</Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-primary" />
+            Install Aplikasi
+          </CardTitle>
+          <CardDescription>Install ZenKasir ke layar utama HP atau desktop Anda agar bisa diakses langsung seperti aplikasi bawaan tanpa perlu buka browser berulang kali.</CardDescription>
         </CardHeader>
         <CardContent>
           {installable ? (
@@ -263,11 +426,41 @@ export default function Setting() {
               <Smartphone className="w-4 h-4 mr-2" /> Install Aplikasi Sekarang
             </Button>
           ) : (
-            <div className="p-4 bg-gray-50 border rounded-lg text-sm text-gray-600">
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 border rounded-lg text-sm text-gray-600 dark:text-gray-400">
               Aplikasi sudah terinstall atau browser Anda saat ini tidak mendukung fitur instalasi. Jika belum terinstall, coba buka kembali web ini melalui Google Chrome.
             </div>
           )}
         </CardContent>
+      </Card>
+
+      <Card className="bg-primary/5 border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Info className="w-5 h-5 text-primary" />
+            Tentang ZenKasir
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4 text-sm text-muted-foreground leading-relaxed">
+          <p>
+            <strong className="text-foreground">ZenKasir</strong> adalah sistem Point of Sale (POS) modern yang dirancang untuk memberikan pengalaman mengelola bisnis dengan tenang dan efisien. 
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
+              <h4 className="font-bold text-foreground mb-1">Offline First</h4>
+              <p>Tetap berjualan meski internet mati. Data tersimpan aman di perangkat Anda dan otomatis sinkron saat dibutuhkan.</p>
+            </div>
+            <div className="p-3 bg-white dark:bg-gray-900 rounded-lg border">
+              <h4 className="font-bold text-foreground mb-1">Smart Analytics</h4>
+              <p>Analisis produk terlaris dan laporan keuntungan yang mendalam untuk membantu keputusan bisnis Anda.</p>
+            </div>
+          </div>
+          <p className="pt-2">
+            Dibuat dengan teknologi PWA (Progressive Web App), ZenKasir dapat diinstal di Android, iOS, maupun Windows tanpa membebani memori perangkat.
+          </p>
+        </CardContent>
+        <CardFooter className="text-[10px] text-center justify-center opacity-50">
+          ZenKasir Engine v1.0.4 - Built for Stability
+        </CardFooter>
       </Card>
 
     </div>

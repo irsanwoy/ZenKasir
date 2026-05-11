@@ -50,13 +50,13 @@ export default function Aktivasi() {
     <div className="flex items-center justify-center min-h-screen bg-gray-50/50 p-4">
       <Card className="w-full max-w-md shadow-lg border-primary/10">
         <CardHeader className="space-y-3 items-center text-center">
-          <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-            <ShieldCheck className="w-8 h-8 text-blue-600" />
+          <div className="w-16 h-16 rounded-full flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="ZenKasir Logo" className="w-full h-full object-cover" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-2xl font-bold tracking-tight">Aktivasi Aplikasi</CardTitle>
+            <CardTitle className="text-2xl font-bold tracking-tight">Aktivasi ZenKasir</CardTitle>
             <CardDescription>
-              Masukkan kode lisensi untuk mulai menggunakan KasirPintar. Pastikan perangkat Anda terhubung ke internet.
+              Masukkan kode lisensi untuk mulai menggunakan ZenKasir. Pastikan perangkat Anda terhubung ke internet.
             </CardDescription>
           </div>
         </CardHeader>
@@ -82,7 +82,7 @@ export default function Aktivasi() {
                 </div>
                 <Input
                   type="text"
-                  placeholder="Contoh: POSAI-XXXX-YYYY"
+                  placeholder="Contoh: ZEN-XXXX-YYYY"
                   value={licenseKey}
                   onChange={(e) => setLicenseKey(e.target.value.toUpperCase())}
                   className="pl-10"

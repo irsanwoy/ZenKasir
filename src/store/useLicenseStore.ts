@@ -74,7 +74,7 @@ export const useLicenseStore = create<LicenseState>()(
               tokoName: license.toko_name 
             });
             
-            return { success: true, message: 'Aktivasi berhasil! Selamat menggunakan POSAI.' };
+            return { success: true, message: 'Aktivasi berhasil! Selamat menggunakan ZenKasir.' };
           }
 
           // Jika lisensi sudah terpakai

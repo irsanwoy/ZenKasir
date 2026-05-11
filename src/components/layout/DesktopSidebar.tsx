@@ -36,8 +36,11 @@ export function DesktopSidebar() {
 
   return (
     <aside className="hidden md:flex flex-col w-64 bg-background dark:bg-card border-r border-border shadow-sm shrink-0 h-screen sticky top-0">
-      <div className="flex items-center justify-between h-16 px-6 border-b shrink-0">
-        <span className="text-xl font-bold text-primary">POS Universal</span>
+      <div className="flex items-center h-16 px-6 border-b shrink-0 space-x-3">
+        <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
+          <img src="/logo.png" alt="ZenKasir" className="w-full h-full object-cover" />
+        </div>
+        <span className="text-xl font-bold text-primary">ZenKasir</span>
       </div>
 
       <div className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
