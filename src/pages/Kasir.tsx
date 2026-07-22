@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -10,11 +10,42 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
 import { Label } from '@/components/ui/label';
-import { Search, Plus, Minus, Printer, ShoppingCart, ScanLine } from 'lucide-react';
+import { Search, Plus, Minus, Printer, ShoppingCart, ScanLine, X, FlipHorizontal } from 'lucide-react';
 import { StrukPrint } from '@/components/StrukPrint';
 import { Sheet } from '@/components/ui/sheet';
 import { Modal } from '@/components/ui/modal';
 import { formatRupiah, parseRupiah } from '@/utils/utils';
+
+let audioCtx: AudioContext | null = null;
+const playBeep = () => {
+  try {
+    if (!audioCtx) {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioContext) audioCtx = new AudioContext();
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    if (audioCtx) {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+      osc.stop(audioCtx.currentTime + 0.1);
+    }
+    
+    if (navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  } catch (e) {
+    // Abaikan jika tidak didukung
+  }
+};
 
 export default function Kasir() {
   const { user } = useAuthStore();
@@ -28,36 +59,56 @@ export default function Kasir() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
   const [isScanning, setIsScanning] = useState(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
   const [isAddPelangganOpen, setIsAddPelangganOpen] = useState(false);
   const [newPelangganName, setNewPelangganName] = useState('');
 
   useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
+    let html5QrCode: Html5Qrcode | null = null;
+    
     if (isScanning) {
-      setTimeout(() => {
-        scanner = new Html5QrcodeScanner("kasir-reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        scanner.render(async (decodedText) => {
-          setIsScanning(false);
-          scanner?.clear();
-          
-          const match = await db.produk.where('barcode').equals(decodedText).first();
-          if (match) {
-            handleAddProduct(match);
-            setTimeout(() => searchInputRef.current?.focus(), 50);
-          } else {
-            setToastMessage('Produk tidak ditemukan');
-            setTimeout(() => setToastMessage(''), 3000);
-            setTimeout(() => searchInputRef.current?.focus(), 50);
-          }
-        }, () => {});
-      }, 100);
+      html5QrCode = new Html5Qrcode("kasir-reader");
+      
+      const onScanSuccess = async (decodedText: string) => {
+        if (html5QrCode?.isScanning) {
+          html5QrCode.stop().then(() => {
+            html5QrCode?.clear();
+            setIsScanning(false);
+          }).catch(console.error);
+        }
+        
+        const match = await db.produk.where('barcode').equals(decodedText).first();
+        if (match) {
+          handleAddProduct(match);
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        } else {
+          setToastMessage('Produk tidak ditemukan');
+          setTimeout(() => setToastMessage(''), 3000);
+          setTimeout(() => searchInputRef.current?.focus(), 50);
+        }
+      };
+
+      html5QrCode.start(
+        { facingMode: facingMode },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        undefined
+      ).catch((err) => {
+        console.error("Camera start error", err);
+        setToastMessage('Gagal membuka kamera / Izin ditolak');
+        setTimeout(() => setToastMessage(''), 3000);
+        setIsScanning(false);
+      });
     }
+
     return () => {
-      if (scanner) {
-        scanner.clear().catch(console.error);
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => html5QrCode?.clear()).catch(console.error);
+      } else if (html5QrCode) {
+        html5QrCode.clear();
       }
     };
-  }, [isScanning]);
+  }, [isScanning, facingMode]);
 
   const printRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -98,6 +149,8 @@ export default function Kasir() {
       stok: p.stok,
       kelola_stok: p.kelola_stok
     });
+    
+    playBeep();
   };
 
   const handleSearchKeyDown = async (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -263,7 +316,29 @@ export default function Kasir() {
             </Button>
           </div>
           {isScanning && (
-            <div id="kasir-reader" className="w-full mt-2 border rounded-md overflow-hidden bg-card max-w-sm mx-auto"></div>
+            <div className="relative w-full mt-2 border rounded-md overflow-hidden bg-black max-w-sm mx-auto">
+              <div className="absolute top-2 right-2 z-10 flex gap-2">
+                <Button 
+                  size="icon" 
+                  variant="secondary" 
+                  className="rounded-full bg-black/50 text-white hover:bg-black/70 w-8 h-8"
+                  onClick={(e) => { e.preventDefault(); setFacingMode(prev => prev === 'environment' ? 'user' : 'environment'); }}
+                  title="Tukar Kamera"
+                >
+                  <FlipHorizontal className="h-4 w-4" />
+                </Button>
+                <Button 
+                  size="icon" 
+                  variant="destructive" 
+                  className="rounded-full w-8 h-8"
+                  onClick={(e) => { e.preventDefault(); setIsScanning(false); }}
+                  title="Tutup Scanner"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div id="kasir-reader" className="w-full min-h-[250px] bg-black"></div>
+            </div>
           )}
         </CardHeader>
         <CardContent className="flex-1 overflow-auto">
@@ -303,7 +378,7 @@ export default function Kasir() {
       </Card>
 
       {/* Right side: Cart & Checkout */}
-      <Sheet isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} title="Keranjang Belanja">
+      <Sheet isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} title="Keranjang Belanja" isDesktopStatic>
         <Card className="flex flex-col h-full border-0 lg:border lg:h-[calc(100vh-10rem)] rounded-none lg:rounded-xl shadow-none lg:shadow-sm">
           <CardHeader className="hidden lg:flex pb-3 shrink-0 border-b">
             <CardTitle>Keranjang</CardTitle>

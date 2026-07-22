@@ -1,5 +1,5 @@
 import { db } from '@/db/db';
-import { subDays, subMonths, subYears, format } from 'date-fns';
+import { subDays, format } from 'date-fns';
 
 export async function seedDummyData() {
   try {

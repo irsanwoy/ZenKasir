@@ -299,7 +299,7 @@ export default function Setting() {
               <div className="relative">
                 <Input 
                   type="file" 
-                  accept=".json"
+                  accept=".json,application/json,text/plain,*/*"
                   onChange={handleRestore}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   title="Pilih file backup json"

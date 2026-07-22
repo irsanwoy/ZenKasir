@@ -199,3 +199,17 @@
 #reader__scan_region img {
   @apply !rounded-md !max-w-full;
 }
+
+@media print {
+  @page {
+    margin: 0;
+    size: 58mm auto;
+  }
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    margin: 0;
+    padding: 0;
+    background: white !important;
+  }
+}

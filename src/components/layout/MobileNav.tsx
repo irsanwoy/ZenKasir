@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/useAuthStore';
 import { 
-  LayoutDashboard, ShoppingCart, Package, Users, Wallet, FileText, Settings, LogOut, Menu, X
+  LayoutDashboard, ShoppingCart, Package, Users, Wallet, FileText, Settings, LogOut, Menu
 } from 'lucide-react';
 import { Sheet } from '@/components/ui/sheet';
 
@@ -35,7 +35,7 @@ export function MobileNav() {
 
   return (
     <>
-      <nav className="fixed bottom-0 w-full bg-background dark:bg-card border-t border-border z-50 md:hidden pb-safe">
+      <nav className="fixed bottom-0 w-full bg-background dark:bg-card border-t border-border z-50 md:hidden pb-safe print:hidden">
         <ul className="flex items-center justify-around h-16 px-2">
           {primaryNav.map((item) => {
             const Icon = item.icon;

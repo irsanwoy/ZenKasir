@@ -28,7 +28,7 @@ export const StrukPrint = React.forwardRef<HTMLDivElement, StrukPrintProps>(
     const { items, kode, tanggal, kasir, subtotal, total, bayar, kembalian, metode_bayar } = transaksi;
 
     return (
-      <div ref={ref} className="hidden print:block font-mono text-[12px] leading-tight text-black p-4 w-[58mm] mx-auto bg-white">
+      <div ref={ref} className="hidden print:block font-mono text-[12px] leading-tight text-black print:w-full print:px-3 print:py-2 mx-auto bg-white">
         <div className="text-center mb-4">
           <h2 className="font-bold text-[14px]">{settings.nama_toko}</h2>
           <p>{settings.alamat}</p>

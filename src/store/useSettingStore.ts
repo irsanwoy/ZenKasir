@@ -24,7 +24,7 @@ export const useSettingStore = create<SettingState>()(
         no_hp: '081234567890',
         footer_struk: 'Terima kasih atas kunjungan Anda!',
         qris_image: '',
-        is_dark_mode: false,
+        is_dark_mode: true,
       },
       updateSettings: (newSettings) => set((state) => ({
         settings: { ...state.settings, ...newSettings }

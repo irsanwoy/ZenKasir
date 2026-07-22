@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useState, useEffect, useRef } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Plus, Edit2, Trash2, Camera, ScanLine } from 'lucide-react';
+import { Plus, Edit2, Trash2, Camera, ScanLine, X, FlipHorizontal } from 'lucide-react';
 import { formatRupiah, parseRupiah } from '@/utils/utils';
 
 export default function Produk() {
@@ -24,25 +24,49 @@ export default function Produk() {
   };
   const [formData, setFormData] = useState(initialForm);
   const [isScanning, setIsScanning] = useState(false);
+  const [facingMode, setFacingMode] = useState<'environment' | 'user'>('environment');
+
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    let scanner: Html5QrcodeScanner | null = null;
+    let html5QrCode: Html5Qrcode | null = null;
+    
     if (isScanning) {
-      setTimeout(() => {
-        scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: {width: 250, height: 250} }, false);
-        scanner.render((decodedText) => {
-          setFormData(prev => ({ ...prev, barcode: decodedText }));
-          setIsScanning(false);
-          scanner?.clear();
-        }, () => {});
-      }, 100);
+      html5QrCode = new Html5Qrcode("reader");
+      
+      const onScanSuccess = (decodedText: string) => {
+        if (html5QrCode?.isScanning) {
+          html5QrCode.stop().then(() => {
+            html5QrCode?.clear();
+            setIsScanning(false);
+            setFormData(prev => ({ ...prev, barcode: decodedText }));
+          }).catch(console.error);
+        }
+      };
+
+      html5QrCode.start(
+        { facingMode: facingMode },
+        { fps: 10, qrbox: { width: 250, height: 250 } },
+        onScanSuccess,
+        undefined
+      ).catch((err) => {
+        console.error("Camera start error", err);
+        setIsScanning(false);
+        alert('Gagal membuka kamera / Izin ditolak');
+      });
     }
+
     return () => {
-      if (scanner) {
-        scanner.clear().catch(console.error);
+      if (html5QrCode && html5QrCode.isScanning) {
+        html5QrCode.stop().then(() => html5QrCode?.clear()).catch(console.error);
+      } else if (html5QrCode) {
+        html5QrCode.clear();
       }
     };
-  }, [isScanning]);
+  }, [isScanning, facingMode]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -82,6 +106,60 @@ export default function Produk() {
     }
   };
 
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+      }
+      streamRef.current = stream;
+      setIsCameraOpen(true);
+    } catch (err) {
+      console.error("Error accessing camera:", err);
+      alert("Tidak dapat mengakses kamera. Pastikan perangkat Anda memiliki kamera dan izin telah diberikan.");
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    setIsCameraOpen(false);
+  };
+
+  const capturePhoto = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const MAX_SIZE = 300;
+      
+      let width = video.videoWidth;
+      let height = video.videoHeight;
+      
+      if (width > height) {
+        if (width > MAX_SIZE) {
+          height *= MAX_SIZE / width;
+          width = MAX_SIZE;
+        }
+      } else {
+        if (height > MAX_SIZE) {
+          width *= MAX_SIZE / height;
+          height = MAX_SIZE;
+        }
+      }
+      
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx?.drawImage(video, 0, 0, width, height);
+      
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+      setFormData(prev => ({ ...prev, gambar: dataUrl }));
+      stopCamera();
+    }
+  };
+
   const openModal = (id: number | null = null, currentData: any = null) => {
     setEditId(id);
     if (currentData) {
@@ -97,6 +175,7 @@ export default function Produk() {
     setFormData(initialForm);
     setEditId(null);
     setIsScanning(false);
+    stopCamera();
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -224,32 +303,74 @@ export default function Produk() {
               </Button>
             </div>
             {isScanning && (
-              <div id="reader" className="w-full mt-2 border rounded-md overflow-hidden bg-background"></div>
+              <div className="relative w-full mt-2 border rounded-md overflow-hidden bg-black max-w-sm mx-auto col-span-2">
+                <div className="absolute top-2 right-2 z-10 flex gap-2">
+                  <Button 
+                    type="button"
+                    size="icon" 
+                    variant="secondary" 
+                    className="rounded-full bg-black/50 text-white hover:bg-black/70 w-8 h-8"
+                    onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
+                    title="Tukar Kamera"
+                  >
+                    <FlipHorizontal className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    type="button"
+                    size="icon" 
+                    variant="destructive" 
+                    className="rounded-full w-8 h-8"
+                    onClick={() => setIsScanning(false)}
+                    title="Tutup Scanner"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div id="reader" className="w-full min-h-[250px] bg-black"></div>
+              </div>
             )}
           </div>
           
           <div className="space-y-2 col-span-2">
             <label className="text-sm font-medium">Foto Produk</label>
-            <div className="flex items-center gap-4">
-              {formData.gambar ? (
-                <div className="relative w-16 h-16 border rounded-md overflow-hidden">
-                  <img src={formData.gambar} alt="Preview" className="w-full h-full object-cover" />
-                  <button type="button" onClick={() => setFormData({...formData, gambar: ''})} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md p-1">
-                    <Trash2 className="w-3 h-3" />
-                  </button>
+            {!isCameraOpen ? (
+              <div className="flex items-center gap-4">
+                {formData.gambar ? (
+                  <div className="relative w-16 h-16 border rounded-md overflow-hidden shrink-0">
+                    <img src={formData.gambar} alt="Preview" className="w-full h-full object-cover" />
+                    <button type="button" onClick={() => setFormData({...formData, gambar: ''})} className="absolute top-0 right-0 bg-red-500 text-white rounded-bl-md p-1 hover:bg-red-600 transition-colors">
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <Button type="button" variant="outline" className="w-16 h-16 shrink-0 border-dashed hover:bg-muted/50" onClick={startCamera} title="Jepret dari Kamera">
+                    <Camera className="w-6 h-6 text-muted-foreground" />
+                  </Button>
+                )}
+                <div className="flex-1">
+                  <Input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={handleImageUpload}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Pilih foto atau klik ikon kamera untuk memotret langsung.</p>
                 </div>
-              ) : (
-                <div className="w-16 h-16 border rounded-md bg-muted flex items-center justify-center text-muted-foreground">
-                  <Camera className="w-6 h-6" />
+              </div>
+            ) : (
+              <div className="border rounded-md p-4 bg-muted/10 space-y-4">
+                <div className="relative aspect-video bg-black rounded-md overflow-hidden w-full max-w-sm mx-auto shadow-inner">
+                  <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover"></video>
+                  <canvas ref={canvasRef} className="hidden"></canvas>
                 </div>
-              )}
-              <Input 
-                type="file" 
-                accept="image/*" 
-                onChange={handleImageUpload}
-                className="flex-1"
-              />
-            </div>
+                <div className="flex justify-center gap-4">
+                  <Button type="button" variant="outline" onClick={stopCamera}>Batal</Button>
+                  <Button type="button" onClick={capturePhoto}>
+                    <Camera className="w-4 h-4 mr-2" /> Jepret
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
           
           <div className="space-y-2 col-span-2">
@@ -267,7 +388,7 @@ export default function Produk() {
             <label className="text-sm font-medium">Harga Modal</label>
             <Input 
               type="text"
-              value={formatRupiah(formData.harga_modal)} 
+              value={formData.harga_modal === 0 ? '' : formatRupiah(formData.harga_modal)} 
               onChange={(e) => setFormData({...formData, harga_modal: parseRupiah(e.target.value)})} 
               required
             />
@@ -276,7 +397,7 @@ export default function Produk() {
             <label className="text-sm font-medium">Harga Jual</label>
             <Input 
               type="text"
-              value={formatRupiah(formData.harga_jual)} 
+              value={formData.harga_jual === 0 ? '' : formatRupiah(formData.harga_jual)} 
               onChange={(e) => setFormData({...formData, harga_jual: parseRupiah(e.target.value)})} 
               required
             />
@@ -298,9 +419,9 @@ export default function Produk() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Stok Awal</label>
               <Input 
-                type="number"
-                value={formData.stok} 
-                onChange={(e) => setFormData({...formData, stok: Number(e.target.value)})} 
+                type="text"
+                value={formData.stok === 0 ? '' : formatRupiah(formData.stok)} 
+                onChange={(e) => setFormData({...formData, stok: parseRupiah(e.target.value)})} 
                 disabled={!!editId}
               />
             </div>
