@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { Card, CardContent } from '@/components/ui/card';
@@ -35,7 +35,17 @@ export default function Produk() {
     let html5QrCode: Html5Qrcode | null = null;
     
     if (isScanning) {
-      html5QrCode = new Html5Qrcode("reader");
+      html5QrCode = new Html5Qrcode("reader", {
+        formatsToSupport: [
+          Html5QrcodeSupportedFormats.QR_CODE,
+          Html5QrcodeSupportedFormats.EAN_13,
+          Html5QrcodeSupportedFormats.EAN_8,
+          Html5QrcodeSupportedFormats.CODE_128,
+          Html5QrcodeSupportedFormats.CODE_39,
+          Html5QrcodeSupportedFormats.UPC_A,
+          Html5QrcodeSupportedFormats.UPC_E,
+        ]
+      });
       
       let isLocalScanning = true;
       const onScanSuccess = (decodedText: string) => {
@@ -54,7 +64,7 @@ export default function Produk() {
 
       html5QrCode.start(
         { facingMode: facingMode },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        { fps: 10, qrbox: { width: 300, height: 150 } },
         onScanSuccess,
         undefined
       ).catch((err) => {
