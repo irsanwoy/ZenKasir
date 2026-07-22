@@ -68,9 +68,10 @@ export default function Laporan() {
 
   const summary = transaksiList?.reduce((acc, t) => {
     acc.omset += t.total;
-    acc.transaksi += 1;
+    acc.kas_masuk += (t.bayar - t.kembalian);
+    acc.transaksi += (t.metode_bayar === 'Pelunasan Bon' ? 0 : 1);
     return acc;
-  }, { omset: 0, transaksi: 0 });
+  }, { omset: 0, transaksi: 0, kas_masuk: 0 });
 
   const labaBersih = (summary?.omset || 0) - totalBiaya;
 
@@ -148,6 +149,15 @@ export default function Laporan() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">Rp {(summary?.omset || 0).toLocaleString('id-ID')}</div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Kas Masuk</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-green-600">Rp {(summary?.kas_masuk || 0).toLocaleString('id-ID')}</div>
+            <p className="text-xs text-muted-foreground mt-1">Uang riil diterima (termasuk Pelunasan Piutang)</p>
           </CardContent>
         </Card>
       </div>

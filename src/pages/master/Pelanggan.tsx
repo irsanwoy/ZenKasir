@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
+import { useAuthStore } from '@/store/useAuthStore';
 import { Card, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,8 @@ import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 
 export default function Pelanggan() {
+  const { user } = useAuthStore();
+  
   const pelanggans = useLiveQuery(async () => {
     const list = await db.pelanggan.toArray();
     return await Promise.all(list.map(async (p) => {
@@ -107,6 +110,8 @@ export default function Pelanggan() {
     if (!pelangganPelunasan || jumlahBayar <= 0) return;
     
     let sisaBayar = jumlahBayar;
+    const now = new Date();
+    const kode_transaksi = 'PLN-' + format(now, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 1000);
     
     try {
       await db.transaction('rw', db.transaksi, async () => {
@@ -130,6 +135,20 @@ export default function Pelanggan() {
             sisaBayar = 0;
           }
         }
+        
+        await db.transaksi.add({
+          kode_transaksi,
+          tanggal: now,
+          user_id: user?.id || 0,
+          pelanggan_id: pelangganPelunasan.id,
+          subtotal: 0,
+          diskon: 0,
+          total: 0,
+          bayar: jumlahBayar,
+          kembalian: 0,
+          metode_bayar: 'Pelunasan Bon',
+          status: 'Lunas'
+        });
       });
       alert('Pelunasan berhasil diproses!');
       closePelunasan();
@@ -297,7 +316,7 @@ export default function Pelanggan() {
           </div>
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={closePelunasan}>Batal</Button>
-            <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white">Proses Pembayaran</Button>
+            <Button type="submit" className="bg-green-600 hover:bg-green-700 text-white">Proses Pembayaran / Cicilan</Button>
           </div>
         </form>
       </Modal>
