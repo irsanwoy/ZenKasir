@@ -37,12 +37,17 @@ export default function Produk() {
     if (isScanning) {
       html5QrCode = new Html5Qrcode("reader");
       
+      let isLocalScanning = true;
       const onScanSuccess = (decodedText: string) => {
-        if (html5QrCode?.isScanning) {
+        if (!isLocalScanning) return;
+        isLocalScanning = false;
+        
+        setFormData(prev => ({ ...prev, barcode: decodedText }));
+        setIsScanning(false);
+        
+        if (html5QrCode) {
           html5QrCode.stop().then(() => {
             html5QrCode?.clear();
-            setIsScanning(false);
-            setFormData(prev => ({ ...prev, barcode: decodedText }));
           }).catch(console.error);
         }
       };
@@ -107,15 +112,18 @@ export default function Produk() {
   };
 
   const startCamera = async () => {
+    setIsCameraOpen(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
       streamRef.current = stream;
-      setIsCameraOpen(true);
+      setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      }, 100);
     } catch (err) {
       console.error("Error accessing camera:", err);
+      setIsCameraOpen(false);
       alert("Tidak dapat mengakses kamera. Pastikan perangkat Anda memiliki kamera dan izin telah diberikan.");
     }
   };
