@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
-import { Plus, Edit2, Trash2, Wallet, ClipboardList, MessageCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, Wallet, ClipboardList, MessageCircle, PlusCircle } from 'lucide-react';
 import { formatRupiah, parseRupiah } from '@/utils/utils';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -36,6 +36,11 @@ export default function Pelanggan() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [selectedHistoryPelanggan, setSelectedHistoryPelanggan] = useState<any>(null);
   const [historyList, setHistoryList] = useState<any[]>([]);
+
+  const [isTambahUtangOpen, setIsTambahUtangOpen] = useState(false);
+  const [pelangganUtang, setPelangganUtang] = useState<any>(null);
+  const [nominalUtang, setNominalUtang] = useState<number>(0);
+  const [keteranganUtang, setKeteranganUtang] = useState<string>('');
 
   const openModal = (id: number | null = null, currentData = { nama: '', no_hp: '' }) => {
     setEditId(id);
@@ -103,6 +108,50 @@ export default function Pelanggan() {
     setIsHistoryOpen(false);
     setSelectedHistoryPelanggan(null);
     setHistoryList([]);
+  };
+
+  const openTambahUtang = (p: any) => {
+    setPelangganUtang(p);
+    setNominalUtang(0);
+    setKeteranganUtang('');
+    setIsTambahUtangOpen(true);
+  };
+
+  const closeTambahUtang = () => {
+    setIsTambahUtangOpen(false);
+    setPelangganUtang(null);
+    setNominalUtang(0);
+    setKeteranganUtang('');
+  };
+
+  const handleTambahUtang = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!pelangganUtang || nominalUtang <= 0) return;
+    
+    const now = new Date();
+    const kode_transaksi = 'BON-' + format(now, 'yyyyMMddHHmmss') + '-' + Math.floor(Math.random() * 1000);
+    
+    try {
+      await db.transaksi.add({
+        kode_transaksi,
+        tanggal: now,
+        user_id: user?.id || 0,
+        pelanggan_id: pelangganUtang.id,
+        subtotal: nominalUtang,
+        diskon: 0,
+        total: nominalUtang,
+        bayar: 0,
+        kembalian: 0,
+        metode_bayar: 'Bon',
+        status: 'Bon',
+        keterangan: keteranganUtang || 'Utang Manual'
+      });
+      alert('Utang berhasil ditambahkan!');
+      closeTambahUtang();
+    } catch (error) {
+      console.error(error);
+      alert('Gagal menambahkan utang');
+    }
   };
 
   const handlePelunasan = async (e: React.FormEvent) => {
@@ -232,6 +281,9 @@ export default function Pelanggan() {
                         <Wallet className="w-4 h-4 text-green-600" />
                       </Button>
                     )}
+                    <Button variant="ghost" size="icon" title="Tambah Utang" onClick={() => openTambahUtang(p)}>
+                      <PlusCircle className="w-4 h-4 text-orange-500" />
+                    </Button>
                     <Button variant="ghost" size="icon" onClick={() => openModal(p.id, { nama: p.nama, no_hp: p.no_hp })}>
                       <Edit2 className="w-4 h-4 text-blue-500" />
                     </Button>
@@ -322,6 +374,42 @@ export default function Pelanggan() {
       </Modal>
 
       <Modal 
+        isOpen={isTambahUtangOpen} 
+        onClose={closeTambahUtang} 
+        title="Tambah Utang Manual"
+      >
+        <form onSubmit={handleTambahUtang} className="space-y-4">
+          <div>
+            <label className="text-sm font-medium">Nama Pelanggan</label>
+            <Input value={pelangganUtang?.nama || ''} disabled />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Nominal Utang</label>
+            <Input 
+              type="text"
+              value={formatRupiah(nominalUtang)} 
+              onChange={(e) => setNominalUtang(parseRupiah(e.target.value))} 
+              placeholder="0" 
+              required
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium">Keterangan (Opsional)</label>
+            <Input 
+              type="text"
+              value={keteranganUtang} 
+              onChange={(e) => setKeteranganUtang(e.target.value)} 
+              placeholder="Contoh: Pinjam uang tunai, dll" 
+            />
+          </div>
+          <div className="flex justify-end space-x-2 pt-4">
+            <Button type="button" variant="outline" onClick={closeTambahUtang}>Batal</Button>
+            <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white">Tambahkan Utang</Button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal 
         isOpen={isHistoryOpen} 
         onClose={closeHistory} 
         title={`Histori Transaksi - ${selectedHistoryPelanggan?.nama}`}
@@ -334,6 +422,7 @@ export default function Pelanggan() {
                 <TableHead>Kode TRX</TableHead>
                 <TableHead>Waktu</TableHead>
                 <TableHead>Metode</TableHead>
+                <TableHead>Keterangan</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Total Tagihan</TableHead>
                 <TableHead className="text-right">Telah Dibayar</TableHead>
@@ -345,6 +434,7 @@ export default function Pelanggan() {
                   <TableCell className="font-medium">{t.kode_transaksi}</TableCell>
                   <TableCell>{format(t.tanggal, 'dd MMM yyyy HH:mm', { locale: localeId })}</TableCell>
                   <TableCell>{t.metode_bayar}</TableCell>
+                  <TableCell className="text-muted-foreground">{t.keterangan || '-'}</TableCell>
                   <TableCell>
                     <span className={`px-2 py-1 rounded text-xs font-medium ${t.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                       {t.status}
@@ -356,7 +446,7 @@ export default function Pelanggan() {
               ))}
               {historyList.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Belum ada riwayat transaksi
                   </TableCell>
                 </TableRow>

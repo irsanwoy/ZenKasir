@@ -49,6 +49,7 @@ export interface Transaksi {
   kembalian: number;
   metode_bayar: 'Tunai' | 'QRIS' | 'Bon' | 'Pelunasan Bon';
   status: 'Lunas' | 'Bon';
+  keterangan?: string;
 }
 
 export interface TransaksiDetail {
