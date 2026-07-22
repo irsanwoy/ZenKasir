@@ -100,8 +100,8 @@ export default function Kasir() {
       };
 
       html5QrCode.start(
-        { facingMode: facingMode },
-        { fps: 10, qrbox: { width: 300, height: 150 } },
+        { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        { fps: 10 },
         onScanSuccess,
         undefined
       ).catch((err) => {
