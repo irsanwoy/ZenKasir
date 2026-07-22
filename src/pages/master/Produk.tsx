@@ -142,8 +142,8 @@ export default function Produk() {
       const canvas = canvasRef.current;
       const MAX_SIZE = 300;
       
-      let width = video.videoWidth;
-      let height = video.videoHeight;
+      let width = video.videoWidth || video.clientWidth || 300;
+      let height = video.videoHeight || video.clientHeight || 300;
       
       if (width > height) {
         if (width > MAX_SIZE) {
@@ -156,6 +156,9 @@ export default function Produk() {
           height = MAX_SIZE;
         }
       }
+      
+      width = Math.max(1, Math.round(width));
+      height = Math.max(1, Math.round(height));
       
       canvas.width = width;
       canvas.height = height;
