@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { BrowserMultiFormatReader } from '@zxing/library';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -64,28 +64,19 @@ export default function Kasir() {
   const [newPelangganName, setNewPelangganName] = useState('');
 
   useEffect(() => {
-    let html5QrCode: Html5Qrcode | null = null;
+    let codeReader: BrowserMultiFormatReader | null = null;
     
     if (isScanning) {
-      html5QrCode = new Html5Qrcode("kasir-reader", {
-        verbose: false,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-        ]
-      });
+      codeReader = new BrowserMultiFormatReader();
       
+      let isLocalScanning = true;
       const onScanSuccess = async (decodedText: string) => {
-        if (html5QrCode?.isScanning) {
-          html5QrCode.stop().then(() => {
-            html5QrCode?.clear();
-            setIsScanning(false);
-          }).catch(console.error);
+        if (!isLocalScanning) return;
+        isLocalScanning = false;
+        
+        if (codeReader) {
+          codeReader.reset();
+          setIsScanning(false);
         }
         
         const match = await db.produk.where('barcode').equals(decodedText).first();
@@ -99,24 +90,28 @@ export default function Kasir() {
         }
       };
 
-      html5QrCode.start(
-        { facingMode: facingMode },
-        { fps: 10 },
-        onScanSuccess,
-        undefined
-      ).catch((err) => {
-        console.error("Camera start error", err);
-        setToastMessage('Gagal membuka kamera / Izin ditolak');
-        setTimeout(() => setToastMessage(''), 3000);
-        setIsScanning(false);
-      });
+      const videoElement = document.getElementById("kasir-reader") as HTMLVideoElement;
+      if (videoElement) {
+        codeReader.decodeFromConstraints(
+          { video: { facingMode: facingMode } },
+          videoElement,
+          (result, _err) => {
+            if (result) {
+              onScanSuccess(result.getText());
+            }
+          }
+        ).catch((err) => {
+          console.error("Camera start error", err);
+          setToastMessage('Gagal membuka kamera / Izin ditolak');
+          setTimeout(() => setToastMessage(''), 3000);
+          setIsScanning(false);
+        });
+      }
     }
 
     return () => {
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => html5QrCode?.clear()).catch(console.error);
-      } else if (html5QrCode) {
-        html5QrCode.clear();
+      if (codeReader) {
+        codeReader.reset();
       }
     };
   }, [isScanning, facingMode]);
@@ -348,7 +343,7 @@ export default function Kasir() {
                   <X className="h-4 w-4" />
                 </Button>
               </div>
-              <div id="kasir-reader" className="w-full min-h-[250px] bg-black"></div>
+              <video id="kasir-reader" className="w-full min-h-[250px] bg-black object-cover" autoPlay playsInline muted></video>
             </div>
           )}
         </CardHeader>

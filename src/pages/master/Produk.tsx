@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { BrowserMultiFormatReader } from '@zxing/library';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '@/db/db';
 import { Card, CardContent } from '@/components/ui/card';
@@ -32,21 +32,10 @@ export default function Produk() {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    let html5QrCode: Html5Qrcode | null = null;
+    let codeReader: BrowserMultiFormatReader | null = null;
     
     if (isScanning) {
-      html5QrCode = new Html5Qrcode("reader", {
-        verbose: false,
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-        ]
-      });
+      codeReader = new BrowserMultiFormatReader();
       
       let isLocalScanning = true;
       const onScanSuccess = (decodedText: string) => {
@@ -56,30 +45,32 @@ export default function Produk() {
         setFormData(prev => ({ ...prev, barcode: decodedText }));
         setIsScanning(false);
         
-        if (html5QrCode) {
-          html5QrCode.stop().then(() => {
-            html5QrCode?.clear();
-          }).catch(console.error);
+        if (codeReader) {
+          codeReader.reset();
         }
       };
 
-      html5QrCode.start(
-        { facingMode: facingMode },
-        { fps: 10 },
-        onScanSuccess,
-        undefined
-      ).catch((err) => {
-        console.error("Camera start error", err);
-        setIsScanning(false);
-        alert('Gagal membuka kamera / Izin ditolak');
-      });
+      const videoElement = document.getElementById("reader") as HTMLVideoElement;
+      if (videoElement) {
+        codeReader.decodeFromConstraints(
+          { video: { facingMode: facingMode } },
+          videoElement,
+          (result, _err) => {
+            if (result) {
+              onScanSuccess(result.getText());
+            }
+          }
+        ).catch((err) => {
+          console.error("Camera start error", err);
+          setIsScanning(false);
+          alert('Gagal membuka kamera / Izin ditolak');
+        });
+      }
     }
 
     return () => {
-      if (html5QrCode && html5QrCode.isScanning) {
-        html5QrCode.stop().then(() => html5QrCode?.clear()).catch(console.error);
-      } else if (html5QrCode) {
-        html5QrCode.clear();
+      if (codeReader) {
+        codeReader.reset();
       }
     };
   }, [isScanning, facingMode]);
@@ -348,7 +339,7 @@ export default function Produk() {
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
-                <div id="reader" className="w-full min-h-[250px] bg-black"></div>
+                <video id="reader" className="w-full min-h-[250px] bg-black object-cover" autoPlay playsInline muted></video>
               </div>
             )}
           </div>
