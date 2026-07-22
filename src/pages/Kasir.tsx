@@ -68,6 +68,7 @@ export default function Kasir() {
     
     if (isScanning) {
       html5QrCode = new Html5Qrcode("kasir-reader", {
+        verbose: false,
         formatsToSupport: [
           Html5QrcodeSupportedFormats.QR_CODE,
           Html5QrcodeSupportedFormats.EAN_13,
