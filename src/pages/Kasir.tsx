@@ -100,7 +100,7 @@ export default function Kasir() {
       };
 
       html5QrCode.start(
-        { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+        { facingMode: facingMode },
         { fps: 10 },
         onScanSuccess,
         undefined
